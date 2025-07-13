@@ -1,0 +1,43 @@
+{
+  "name": "mcp-triliumnext",
+  "version": "0.1.0",
+  "description": "MCP server for TriliumNext note-taking application",
+  "type": "module",
+  "main": "src/index.js",
+  "bin": {
+    "mcp-triliumnext": "src/index.js"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "axios": "^1.7.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "mcp",
+    "trilium",
+    "notes",
+    "model-context-protocol",
+    "ai-tools"
+  ],
+  "author": "",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/your-username/mcp-triliumnext.git"
+  },
+  "bugs": {
+    "url": "https://github.com/your-username/mcp-triliumnext/issues"
+  },
+  "homepage": "https://github.com/your-username/mcp-triliumnext#readme"
+}
