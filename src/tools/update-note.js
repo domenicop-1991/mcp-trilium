@@ -32,35 +32,67 @@ export async function updateNote(triliumClient, args) {
     // Get updated note info for confirmation
     const updatedNote = await triliumClient.get(`notes/${noteId}`);
 
+    // Prepare structured response data
+    const updateData = {
+      operation: 'update_note',
+      timestamp: new Date().toISOString(),
+      request: {
+        noteId,
+        contentLength: content.length
+      },
+      result: {
+        noteId,
+        title: updatedNote.title || 'Untitled',
+        type: updatedNote.type || 'text',
+        dateModified: updatedNote.dateModified,
+        contentLength: content.length,
+        ...updatedNote, // Include any additional data from API response
+        triliumUrl: `trilium://note/${noteId}`
+      }
+    };
+
     return {
       content: [
         {
           type: 'text',
-          text: `✅ **Note updated successfully!**
-
-**Note ID:** \`${noteId}\`
-**Title:** ${updatedNote.title || 'Untitled'}
-**Type:** ${updatedNote.type || 'text'}
-**Last Modified:** ${updatedNote.dateModified ? new Date(updatedNote.dateModified).toLocaleString() : 'Unknown'}
-
-**Content Length:** ${content.length} characters
-
-The note content has been updated in your TriliumNext instance.`,
+          text: `Note updated: "${updatedNote.title || 'Untitled'}" (ID: ${noteId})`
         },
+        {
+          type: 'application/json',
+          text: JSON.stringify(updateData, null, 2)
+        }
       ],
     };
   } catch (error) {
     logger.error(`Failed to update note: ${error.message}`);
+    
+    // Create structured error response
+    const errorData = {
+      operation: 'update_note',
+      timestamp: new Date().toISOString(),
+      request: {
+        noteId: args.noteId,
+        contentLength: args.content?.length
+      },
+      error: {
+        type: error.constructor.name,
+        message: error.message,
+        ...(error instanceof TriliumAPIError && { status: error.status }),
+        ...(error instanceof TriliumAPIError && error.details && { details: error.details })
+      }
+    };
     
     if (error instanceof ValidationError) {
       return {
         content: [
           {
             type: 'text',
-            text: `❌ **Validation Error:** ${error.message}
-
-Please check your input and try again.`,
+            text: `Validation error: ${error.message}`
           },
+          {
+            type: 'application/json',
+            text: JSON.stringify(errorData, null, 2)
+          }
         ],
         isError: true,
       };
@@ -72,16 +104,12 @@ Please check your input and try again.`,
           content: [
             {
               type: 'text',
-              text: `❌ **Note Not Found**
-
-The note with ID \`${args.noteId}\` does not exist or you don't have permission to modify it.
-
-**Possible reasons:**
-- The note ID is incorrect
-- The note has been deleted
-- You don't have permission to edit this note
-- The note might be protected`,
+              text: `Note not found: ${args.noteId}`
             },
+            {
+              type: 'application/json',
+              text: JSON.stringify(errorData, null, 2)
+            }
           ],
           isError: true,
         };
@@ -90,15 +118,12 @@ The note with ID \`${args.noteId}\` does not exist or you don't have permission 
           content: [
             {
               type: 'text',
-              text: `❌ **Access Denied**
-
-You don't have permission to update this note.
-
-**Possible reasons:**
-- The note is protected and requires a password
-- Your authentication token doesn't have write permissions
-- The note is in a read-only subtree`,
+              text: `Access denied: Cannot update note ${args.noteId}`
             },
+            {
+              type: 'application/json',
+              text: JSON.stringify(errorData, null, 2)
+            }
           ],
           isError: true,
         };
@@ -108,11 +133,12 @@ You don't have permission to update this note.
         content: [
           {
             type: 'text',
-            text: `❌ **TriliumNext API Error:** ${error.message}
-
-Status: ${error.status || 'Unknown'}
-Please check your TriliumNext connection and authentication.`,
+            text: `TriliumNext API error: ${error.message}`
           },
+          {
+            type: 'application/json',
+            text: JSON.stringify(errorData, null, 2)
+          }
         ],
         isError: true,
       };
@@ -123,10 +149,12 @@ Please check your TriliumNext connection and authentication.`,
       content: [
         {
           type: 'text',
-          text: `❌ **Unexpected Error:** ${error.message}
-
-Please try again or check the server logs for more details.`,
+          text: `Failed to update note: ${error.message}`
         },
+        {
+          type: 'application/json',
+          text: JSON.stringify(errorData, null, 2)
+        }
       ],
       isError: true,
     };

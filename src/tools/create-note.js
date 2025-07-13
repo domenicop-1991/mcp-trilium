@@ -30,33 +30,67 @@ export async function createNote(triliumClient, args) {
     const noteId = result.note.noteId;
     logger.info(`Note created successfully with ID: ${noteId}`);
 
+    // Prepare structured response data
+    const creationData = {
+      operation: 'create_note',
+      timestamp: new Date().toISOString(),
+      request: {
+        title,
+        type,
+        contentLength: content.length,
+        parentNoteId: parentNoteId || null
+      },
+      result: {
+        noteId,
+        ...result.note, // Include any additional data from API response
+        triliumUrl: `trilium://note/${noteId}` // Add direct link if useful
+      }
+    };
+
     return {
       content: [
         {
           type: 'text',
-          text: `✅ Note created successfully!
-
-**Note ID:** ${noteId}
-**Title:** ${title}
-**Type:** ${type}
-**Parent:** ${parentNoteId || 'root'}
-
-The note has been created and is now available in your TriliumNext instance.`,
+          text: `Note created: "${title}" (ID: ${noteId})`
         },
+        {
+          type: 'application/json',
+          text: JSON.stringify(creationData, null, 2)
+        }
       ],
     };
   } catch (error) {
     logger.error(`Failed to create note: ${error.message}`);
+    
+    // Create structured error response
+    const errorData = {
+      operation: 'create_note',
+      timestamp: new Date().toISOString(),
+      request: {
+        title: args.title,
+        type: args.type,
+        contentLength: args.content?.length,
+        parentNoteId: args.parentNoteId
+      },
+      error: {
+        type: error.constructor.name,
+        message: error.message,
+        ...(error instanceof TriliumAPIError && { status: error.status }),
+        ...(error instanceof TriliumAPIError && error.details && { details: error.details })
+      }
+    };
     
     if (error instanceof ValidationError) {
       return {
         content: [
           {
             type: 'text',
-            text: `❌ **Validation Error:** ${error.message}
-
-Please check your input and try again.`,
+            text: `Validation error: ${error.message}`
           },
+          {
+            type: 'application/json',
+            text: JSON.stringify(errorData, null, 2)
+          }
         ],
         isError: true,
       };
@@ -67,11 +101,12 @@ Please check your input and try again.`,
         content: [
           {
             type: 'text',
-            text: `❌ **TriliumNext API Error:** ${error.message}
-
-Status: ${error.status || 'Unknown'}
-Please check your TriliumNext connection and authentication.`,
+            text: `TriliumNext API error: ${error.message}`
           },
+          {
+            type: 'application/json',
+            text: JSON.stringify(errorData, null, 2)
+          }
         ],
         isError: true,
       };
@@ -82,10 +117,12 @@ Please check your TriliumNext connection and authentication.`,
       content: [
         {
           type: 'text',
-          text: `❌ **Unexpected Error:** ${error.message}
-
-Please try again or check the server logs for more details.`,
+          text: `Note creation failed: ${error.message}`
         },
+        {
+          type: 'application/json',
+          text: JSON.stringify(errorData, null, 2)
+        }
       ],
       isError: true,
     };

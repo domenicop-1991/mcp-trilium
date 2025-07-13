@@ -33,14 +33,14 @@ describe('searchNotes', () => {
             title: 'JavaScript Programming',
             type: 'text',
             dateModified: '2024-01-15T14:30:00.000Z',
-            parentNoteId: 'parent456'
+            parentNoteIds: ['parent456']
           },
           {
             noteId: 'note789',
             title: 'Advanced JavaScript',
             type: 'code',
             dateModified: '2024-01-14T10:15:00.000Z',
-            parentNoteId: 'parent456'
+            parentNoteIds: ['parent456']
           }
         ]
       };
@@ -53,16 +53,20 @@ describe('searchNotes', () => {
       });
 
       expect(mockTriliumClient.get).toHaveBeenCalledWith('notes?search=javascript+programming&limit=10');
-      expect(result.content).toHaveLength(1);
+      expect(result.content).toHaveLength(2);
       expect(result.content[0].type).toBe('text');
-      expect(result.content[0].text).toContain('🔍 **Search Results** (2 of 10 max)');
-      expect(result.content[0].text).toContain('**Query:** "javascript programming"');
-      expect(result.content[0].text).toContain('1. **JavaScript Programming**');
-      expect(result.content[0].text).toContain('   - ID: `note123`');
-      expect(result.content[0].text).toContain('   - Type: text');
-      expect(result.content[0].text).toContain('2. **Advanced JavaScript**');
-      expect(result.content[0].text).toContain('   - ID: `note789`');
-      expect(result.content[0].text).toContain('   - Type: code');
+      expect(result.content[0].text).toBe('Found 2 notes for "javascript programming"');
+      expect(result.content[1].type).toBe('application/json');
+      
+      const searchData = JSON.parse(result.content[1].text);
+      expect(searchData.query).toBe('javascript programming');
+      expect(searchData.limit).toBe(10);
+      expect(searchData.totalResults).toBe(2);
+      expect(searchData.notes).toHaveLength(2);
+      expect(searchData.notes[0].noteId).toBe('note123');
+      expect(searchData.notes[0].title).toBe('JavaScript Programming');
+      expect(searchData.notes[1].noteId).toBe('note789');
+      expect(searchData.notes[1].title).toBe('Advanced JavaScript');
     });
 
     test('should handle exact match search with quotes', async () => {
@@ -85,8 +89,11 @@ describe('searchNotes', () => {
       });
 
       expect(mockTriliumClient.get).toHaveBeenCalledWith('notes?search=%22Two+Towers%22&limit=5');
-      expect(result.content[0].text).toContain('**Query:** ""Two Towers""');
-      expect(result.content[0].text).toContain('1. **The Two Towers**');
+      expect(result.content[0].text).toBe('Found 1 note for "\"Two Towers\""');
+      
+      const jsonData = JSON.parse(result.content[1].text);
+      expect(jsonData.query).toBe('"Two Towers"');
+      expect(jsonData.notes[0].title).toBe('The Two Towers');
     });
 
     test('should handle label-based search', async () => {
@@ -109,7 +116,10 @@ describe('searchNotes', () => {
       });
 
       expect(mockTriliumClient.get).toHaveBeenCalledWith('notes?search=%23book+javascript&limit=10');
-      expect(result.content[0].text).toContain('**Query:** "#book javascript"');
+      expect(result.content[0].text).toBe('Found 1 note for "#book javascript"');
+      
+      const jsonData = JSON.parse(result.content[1].text);
+      expect(jsonData.query).toBe('#book javascript');
     });
 
     test('should use default limit when not specified', async () => {
@@ -140,10 +150,13 @@ describe('searchNotes', () => {
         limit: 10
       });
 
-      expect(result.content[0].text).toContain('1. **Untitled**');
-      expect(result.content[0].text).toContain('   - Type: text');
-      expect(result.content[0].text).not.toContain('Modified:');
-      expect(result.content[0].text).not.toContain('Parent:');
+      expect(result.content[0].text).toBe('Found 1 note for "test"');
+      
+      const jsonData = JSON.parse(result.content[1].text);
+      expect(jsonData.notes[0].title).toBe('Untitled');
+      expect(jsonData.notes[0].type).toBe('text');
+      expect(jsonData.notes[0].dateModified).toBeUndefined();
+      expect(jsonData.notes[0].parentNoteIds).toEqual([]);
     });
 
     test('should include all optional fields when present', async () => {
@@ -154,7 +167,7 @@ describe('searchNotes', () => {
             title: 'Complete Note',
             type: 'code',
             dateModified: '2024-01-15T14:30:00.000Z',
-            parentNoteId: 'parent456'
+            parentNoteIds: ['parent456']
           }
         ]
       };
@@ -166,10 +179,13 @@ describe('searchNotes', () => {
         limit: 10
       });
 
-      expect(result.content[0].text).toContain('1. **Complete Note**');
-      expect(result.content[0].text).toContain('   - Type: code');
-      expect(result.content[0].text).toContain('   - Modified: 1/15/2024');
-      expect(result.content[0].text).toContain('   - Parent: parent456');
+      expect(result.content[0].text).toBe('Found 1 note for "test"');
+      
+      const jsonData = JSON.parse(result.content[1].text);
+      expect(jsonData.notes[0].title).toBe('Complete Note');
+      expect(jsonData.notes[0].type).toBe('code');
+      expect(jsonData.notes[0].dateModified).toBe('2024-01-15T14:30:00.000Z');
+      expect(jsonData.notes[0].parentNoteIds).toEqual(['parent456']);
     });
   });
 
@@ -182,11 +198,13 @@ describe('searchNotes', () => {
         limit: 10
       });
 
-      expect(result.content).toHaveLength(1);
-      expect(result.content[0].text).toContain('🔍 **No notes found**');
-      expect(result.content[0].text).toContain('Your search for "nonexistent query" didn\'t return any results.');
-      expect(result.content[0].text).toContain('**Suggestions:**');
-      expect(result.content[0].text).toContain('- Try using different keywords');
+      expect(result.content).toHaveLength(2);
+      expect(result.content[0].text).toBe('No notes found for "nonexistent query"');
+      
+      const jsonData = JSON.parse(result.content[1].text);
+      expect(jsonData.query).toBe('nonexistent query');
+      expect(jsonData.totalResults).toBe(0);
+      expect(jsonData.notes).toEqual([]);
     });
   });
 
@@ -198,7 +216,11 @@ describe('searchNotes', () => {
       });
 
       expect(result.isError).toBe(true);
-      expect(result.content[0].text).toContain('❌ **Validation Error:** Search query must be a non-empty string');
+      expect(result.content[0].text).toBe('Validation error: Search query must be a non-empty string');
+      
+      const jsonData = JSON.parse(result.content[1].text);
+      expect(jsonData.error.type).toBe('ValidationError');
+      expect(jsonData.error.message).toBe('Search query must be a non-empty string');
       expect(mockTriliumClient.get).not.toHaveBeenCalled();
     });
 
@@ -209,7 +231,10 @@ describe('searchNotes', () => {
       });
 
       expect(result.isError).toBe(true);
-      expect(result.content[0].text).toContain('❌ **Validation Error:** Search query cannot be empty');
+      expect(result.content[0].text).toBe('Validation error: Search query cannot be empty');
+      
+      const jsonData = JSON.parse(result.content[1].text);
+      expect(jsonData.error.message).toBe('Search query cannot be empty');
       expect(mockTriliumClient.get).not.toHaveBeenCalled();
     });
 
@@ -222,7 +247,10 @@ describe('searchNotes', () => {
       });
 
       expect(result.isError).toBe(true);
-      expect(result.content[0].text).toContain('❌ **Validation Error:** Search query cannot exceed 500 characters');
+      expect(result.content[0].text).toBe('Validation error: Search query cannot exceed 500 characters');
+      
+      const jsonData = JSON.parse(result.content[1].text);
+      expect(jsonData.error.message).toBe('Search query cannot exceed 500 characters');
       expect(mockTriliumClient.get).not.toHaveBeenCalled();
     });
 
@@ -233,7 +261,10 @@ describe('searchNotes', () => {
       });
 
       expect(result.isError).toBe(true);
-      expect(result.content[0].text).toContain('❌ **Validation Error:** Search query must be a non-empty string');
+      expect(result.content[0].text).toBe('Validation error: Search query must be a non-empty string');
+      
+      const jsonData = JSON.parse(result.content[1].text);
+      expect(jsonData.error.message).toBe('Search query must be a non-empty string');
       expect(mockTriliumClient.get).not.toHaveBeenCalled();
     });
 
@@ -244,7 +275,10 @@ describe('searchNotes', () => {
       });
 
       expect(result.isError).toBe(true);
-      expect(result.content[0].text).toContain('❌ **Validation Error:** Search query must be a non-empty string');
+      expect(result.content[0].text).toBe('Validation error: Search query must be a non-empty string');
+      
+      const jsonData = JSON.parse(result.content[1].text);
+      expect(jsonData.error.message).toBe('Search query must be a non-empty string');
       expect(mockTriliumClient.get).not.toHaveBeenCalled();
     });
 
@@ -255,7 +289,7 @@ describe('searchNotes', () => {
       });
 
       expect(result.isError).toBe(true);
-      expect(result.content[0].text).toContain('❌ **Validation Error:** Limit must be a positive integer');
+      expect(result.content[0].text).toBe('Validation error: Limit must be a positive integer');
       expect(mockTriliumClient.get).not.toHaveBeenCalled();
     });
 
@@ -266,7 +300,7 @@ describe('searchNotes', () => {
       });
 
       expect(result.isError).toBe(true);
-      expect(result.content[0].text).toContain('❌ **Validation Error:** Limit cannot exceed 100');
+      expect(result.content[0].text).toBe('Validation error: Limit cannot exceed 100');
       expect(mockTriliumClient.get).not.toHaveBeenCalled();
     });
 
@@ -277,7 +311,7 @@ describe('searchNotes', () => {
       });
 
       expect(result.isError).toBe(true);
-      expect(result.content[0].text).toContain('❌ **Validation Error:** Limit must be a positive integer');
+      expect(result.content[0].text).toBe('Validation error: Limit must be a positive integer');
       expect(mockTriliumClient.get).not.toHaveBeenCalled();
     });
 
@@ -326,8 +360,12 @@ describe('searchNotes', () => {
       });
 
       expect(result.isError).toBe(true);
-      expect(result.content[0].text).toContain('❌ **TriliumNext API Error:** Server unavailable');
-      expect(result.content[0].text).toContain('Status: 503');
+      expect(result.content[0].text).toBe('TriliumNext API error: Server unavailable');
+      
+      const jsonData = JSON.parse(result.content[1].text);
+      expect(jsonData.error.type).toBe('TriliumAPIError');
+      expect(jsonData.error.message).toBe('Server unavailable');
+      expect(jsonData.error.status).toBe(503);
     });
 
     test('should handle authentication errors', async () => {
@@ -340,8 +378,11 @@ describe('searchNotes', () => {
       });
 
       expect(result.isError).toBe(true);
-      expect(result.content[0].text).toContain('❌ **TriliumNext API Error:** Authentication failed');
-      expect(result.content[0].text).toContain('Status: 401');
+      expect(result.content[0].text).toBe('TriliumNext API error: Authentication failed');
+      
+      const jsonData = JSON.parse(result.content[1].text);
+      expect(jsonData.error.message).toBe('Authentication failed');
+      expect(jsonData.error.status).toBe(401);
     });
 
     test('should handle invalid API response format', async () => {
@@ -354,7 +395,10 @@ describe('searchNotes', () => {
       });
 
       expect(result.isError).toBe(true);
-      expect(result.content[0].text).toContain('❌ **TriliumNext API Error:** Invalid response from TriliumNext API - expected object with results array');
+      expect(result.content[0].text).toBe('TriliumNext API error: Invalid response from TriliumNext API - expected object with results array');
+      
+      const jsonData = JSON.parse(result.content[1].text);
+      expect(jsonData.error.message).toBe('Invalid response from TriliumNext API - expected object with results array');
     });
 
     test('should handle network errors', async () => {
@@ -367,7 +411,11 @@ describe('searchNotes', () => {
       });
 
       expect(result.isError).toBe(true);
-      expect(result.content[0].text).toContain('❌ **Unexpected Error:** Network timeout');
+      expect(result.content[0].text).toBe('Search failed: Network timeout');
+      
+      const jsonData = JSON.parse(result.content[1].text);
+      expect(jsonData.error.type).toBe('Error');
+      expect(jsonData.error.message).toBe('Network timeout');
     });
   });
 
@@ -431,11 +479,15 @@ describe('searchNotes', () => {
         limit: 50
       });
 
-      expect(result.content[0].text).toContain('🔍 **Search Results** (50 of 50 max)');
-      // Should contain all 50 notes
-      for (let i = 0; i < 50; i++) {
-        expect(result.content[0].text).toContain(`${i + 1}. **Note ${i}**`);
-      }
+      expect(result.content[0].text).toBe('Found 50 notes for "test" (showing first 50)');
+      
+      const jsonData = JSON.parse(result.content[1].text);
+      expect(jsonData.totalResults).toBe(50);
+      expect(jsonData.hasMore).toBe(true);
+      expect(jsonData.notes).toHaveLength(50);
+      // Check first and last notes
+      expect(jsonData.notes[0].title).toBe('Note 0');
+      expect(jsonData.notes[49].title).toBe('Note 49');
     });
 
     test('should handle notes with very long titles', async () => {
@@ -457,7 +509,10 @@ describe('searchNotes', () => {
         limit: 10
       });
 
-      expect(result.content[0].text).toContain(`1. **${longTitle}**`);
+      expect(result.content[0].text).toBe('Found 1 note for "test"');
+      
+      const jsonData = JSON.parse(result.content[1].text);
+      expect(jsonData.notes[0].title).toBe(longTitle);
     });
 
     test('should handle Unicode characters in search query and results', async () => {
@@ -481,7 +536,10 @@ describe('searchNotes', () => {
       expect(mockTriliumClient.get).toHaveBeenCalledWith(
         'notes?search=%E6%97%A5%E6%9C%AC%E8%AA%9E+emoji+%F0%9F%8C%B8&limit=10'
       );
-      expect(result.content[0].text).toContain('1. **日本語のノート 🌸**');
+      expect(result.content[0].text).toBe('Found 1 note for "日本語 emoji 🌸"');
+      
+      const jsonData = JSON.parse(result.content[1].text);
+      expect(jsonData.notes[0].title).toBe('日本語のノート 🌸');
     });
   });
 });

@@ -26,70 +26,85 @@ export async function searchNotes(triliumClient, args) {
     const results = response.results;
     logger.info(`Found ${results.length} notes matching query "${query}"`);
 
+    // Prepare structured response data
+    const searchData = {
+      query,
+      limit,
+      totalResults: results.length,
+      hasMore: results.length === limit, // Might be more results if we hit the limit
+      timestamp: new Date().toISOString(),
+      notes: results.map(note => ({
+        noteId: note.noteId,
+        title: note.title || 'Untitled',
+        type: note.type || 'text',
+        dateCreated: note.dateCreated,
+        dateModified: note.dateModified,
+        parentNoteIds: note.parentNoteIds || [],
+        isProtected: note.isProtected || false,
+        // Preserve additional fields that might be useful
+        ...(note.mime && { mime: note.mime }),
+        ...(note.attributes && { attributes: note.attributes }),
+        ...(note.contentLength && { contentLength: note.contentLength })
+      }))
+    };
+
     if (results.length === 0) {
       return {
         content: [
           {
             type: 'text',
-            text: `🔍 **No notes found**
-
-Your search for "${query}" didn't return any results.
-
-**Suggestions:**
-- Try using different keywords
-- Check for typos in your search query
-- Use broader search terms
-- Try searching for partial words`,
+            text: `No notes found for "${query}"`
           },
+          {
+            type: 'application/json',
+            text: JSON.stringify(searchData, null, 2)
+          }
         ],
       };
     }
 
-    // Format results for display
-    const formattedResults = results.map((note, index) => {
-      const noteInfo = [
-        `${index + 1}. **${note.title || 'Untitled'}**`,
-        `   - ID: \`${note.noteId}\``,
-        `   - Type: ${note.type || 'text'}`,
-      ];
-      
-      if (note.dateModified) {
-        noteInfo.push(`   - Modified: ${new Date(note.dateModified).toLocaleString()}`);
-      }
-      
-      if (note.parentNoteId) {
-        noteInfo.push(`   - Parent: ${note.parentNoteId}`);
-      }
-      
-      return noteInfo.join('\n');
-    }).join('\n\n');
+    // Create concise summary
+    const summary = `Found ${results.length} note${results.length === 1 ? '' : 's'} for "${query}"${searchData.hasMore ? ' (showing first ' + limit + ')' : ''}`;
 
     return {
       content: [
         {
           type: 'text',
-          text: `🔍 **Search Results** (${results.length} of ${limit} max)
-
-**Query:** "${query}"
-
-${formattedResults}
-
-💡 **Tip:** Use the \`get_note\` tool with a note ID to view full content.`,
+          text: summary
         },
+        {
+          type: 'application/json',
+          text: JSON.stringify(searchData, null, 2)
+        }
       ],
     };
   } catch (error) {
     logger.error(`Failed to search notes: ${error.message}`);
     
+    // Create structured error response
+    const errorData = {
+      query: args.query,
+      limit: args.limit,
+      timestamp: new Date().toISOString(),
+      error: {
+        type: error.constructor.name,
+        message: error.message,
+        ...(error instanceof TriliumAPIError && { status: error.status }),
+        ...(error instanceof TriliumAPIError && error.details && { details: error.details })
+      }
+    };
+
     if (error instanceof ValidationError) {
       return {
         content: [
           {
             type: 'text',
-            text: `❌ **Validation Error:** ${error.message}
-
-Please check your search query and try again.`,
+            text: `Validation error: ${error.message}`
           },
+          {
+            type: 'application/json',
+            text: JSON.stringify(errorData, null, 2)
+          }
         ],
         isError: true,
       };
@@ -100,11 +115,12 @@ Please check your search query and try again.`,
         content: [
           {
             type: 'text',
-            text: `❌ **TriliumNext API Error:** ${error.message}
-
-Status: ${error.status || 'Unknown'}
-Please check your TriliumNext connection and authentication.`,
+            text: `TriliumNext API error: ${error.message}`
           },
+          {
+            type: 'application/json',
+            text: JSON.stringify(errorData, null, 2)
+          }
         ],
         isError: true,
       };
@@ -115,10 +131,12 @@ Please check your TriliumNext connection and authentication.`,
       content: [
         {
           type: 'text',
-          text: `❌ **Unexpected Error:** ${error.message}
-
-Please try again or check the server logs for more details.`,
+          text: `Search failed: ${error.message}`
         },
+        {
+          type: 'application/json',
+          text: JSON.stringify(errorData, null, 2)
+        }
       ],
       isError: true,
     };

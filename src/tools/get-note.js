@@ -21,88 +21,84 @@ export async function getNote(triliumClient, args) {
 
     logger.info(`Retrieved note: ${note.title || 'Untitled'} (${noteId})`);
 
-    // Format note information for display
-    const noteInfo = [];
-    
-    noteInfo.push(`# ${note.title || 'Untitled'}`);
-    noteInfo.push('');
-    
-    // Metadata section
-    noteInfo.push('## 📋 Note Information');
-    noteInfo.push(`- **ID:** \`${noteId}\``);
-    noteInfo.push(`- **Type:** ${note.type || 'text'}`);
-    
-    if (note.dateCreated) {
-      noteInfo.push(`- **Created:** ${new Date(note.dateCreated).toLocaleString()}`);
-    }
-    
-    if (note.dateModified) {
-      noteInfo.push(`- **Modified:** ${new Date(note.dateModified).toLocaleString()}`);
-    }
-    
-    if (note.parentNoteId) {
-      noteInfo.push(`- **Parent Note:** \`${note.parentNoteId}\``);
-    }
-    
-    if (note.isProtected) {
-      noteInfo.push('- **🔒 Protected Note**');
-    }
-    
-    // Attributes section (if any)
-    if (note.attributes && note.attributes.length > 0) {
-      noteInfo.push('');
-      noteInfo.push('## 🏷️ Attributes');
-      note.attributes.forEach(attr => {
-        if (attr.type === 'label') {
-          noteInfo.push(`- **${attr.name}:** ${attr.value || '(no value)'}`);
-        } else if (attr.type === 'relation') {
-          noteInfo.push(`- **→ ${attr.name}:** ${attr.value}`);
-        }
-      });
-    }
-    
-    // Content section
-    noteInfo.push('');
-    noteInfo.push('## 📄 Content');
-    
-    if (typeof content === 'string') {
-      if (content.trim().length === 0) {
-        noteInfo.push('*(No content)*');
-      } else {
-        // Limit content display for very long notes
-        const contentLimit = 5000;
-        if (content.length > contentLimit) {
-          noteInfo.push(content.substring(0, contentLimit));
-          noteInfo.push('');
-          noteInfo.push(`*(Content truncated - showing first ${contentLimit} characters of ${content.length} total)*`);
-        } else {
-          noteInfo.push(content);
-        }
+    // Prepare structured response data
+    const noteData = {
+      operation: 'get_note',
+      timestamp: new Date().toISOString(),
+      note: {
+        noteId,
+        title: note.title || 'Untitled',
+        type: note.type || 'text',
+        mime: note.mime,
+        isProtected: note.isProtected || false,
+        isDeleted: note.isDeleted || false,
+        dateCreated: note.dateCreated,
+        dateModified: note.dateModified,
+        utcDateCreated: note.utcDateCreated,
+        utcDateModified: note.utcDateModified,
+        parentNoteIds: note.parentNoteIds || [],
+        childNoteIds: note.childNoteIds || [],
+        attributes: note.attributes || [],
+        content: {
+          type: typeof content === 'string' ? 'text' : 'binary',
+          length: typeof content === 'string' ? content.length : 0,
+          ...(typeof content === 'string' && content.length <= 10000 && { 
+            data: content 
+          }),
+          ...(typeof content === 'string' && content.length > 10000 && { 
+            preview: content.substring(0, 1000) + '...',
+            truncated: true,
+            fullLength: content.length
+          })
+        },
+        triliumUrl: `trilium://note/${noteId}`
       }
-    } else {
-      noteInfo.push('*(Binary content - cannot display)*');
-    }
+    };
+
+    // Create concise summary
+    const summary = `Note: "${note.title || 'Untitled'}" (${note.type || 'text'}, ${typeof content === 'string' ? content.length + ' chars' : 'binary'})`;
 
     return {
       content: [
         {
           type: 'text',
-          text: noteInfo.join('\n'),
+          text: summary
         },
+        {
+          type: 'application/json',
+          text: JSON.stringify(noteData, null, 2)
+        }
       ],
     };
   } catch (error) {
     logger.error(`Failed to get note: ${error.message}`);
     
+    // Create structured error response
+    const errorData = {
+      operation: 'get_note',
+      timestamp: new Date().toISOString(),
+      request: {
+        noteId: args.noteId
+      },
+      error: {
+        type: error.constructor.name,
+        message: error.message,
+        ...(error instanceof TriliumAPIError && { status: error.status }),
+        ...(error instanceof TriliumAPIError && error.details && { details: error.details })
+      }
+    };
+
     if (error instanceof ValidationError) {
       return {
         content: [
           {
             type: 'text',
-            text: `❌ **Validation Error:** ${error.message}
-
-Please check the note ID and try again.`,
+            text: `Validation error: ${error.message}`
           },
+          {
+            type: 'application/json',
+            text: JSON.stringify(errorData, null, 2)
+          }
         ],
         isError: true,
       };
@@ -114,15 +110,12 @@ Please check the note ID and try again.`,
           content: [
             {
               type: 'text',
-              text: `❌ **Note Not Found**
-
-The note with ID \`${args.noteId}\` does not exist or you don't have permission to access it.
-
-**Possible reasons:**
-- The note ID is incorrect
-- The note has been deleted
-- You don't have permission to view this note`,
+              text: `Note not found: ${args.noteId}`
             },
+            {
+              type: 'application/json',
+              text: JSON.stringify(errorData, null, 2)
+            }
           ],
           isError: true,
         };
@@ -132,11 +125,12 @@ The note with ID \`${args.noteId}\` does not exist or you don't have permission 
         content: [
           {
             type: 'text',
-            text: `❌ **TriliumNext API Error:** ${error.message}
-
-Status: ${error.status || 'Unknown'}
-Please check your TriliumNext connection and authentication.`,
+            text: `TriliumNext API error: ${error.message}`
           },
+          {
+            type: 'application/json',
+            text: JSON.stringify(errorData, null, 2)
+          }
         ],
         isError: true,
       };
@@ -147,10 +141,12 @@ Please check your TriliumNext connection and authentication.`,
       content: [
         {
           type: 'text',
-          text: `❌ **Unexpected Error:** ${error.message}
-
-Please try again or check the server logs for more details.`,
+          text: `Failed to get note: ${error.message}`
         },
+        {
+          type: 'application/json',
+          text: JSON.stringify(errorData, null, 2)
+        }
       ],
       isError: true,
     };
