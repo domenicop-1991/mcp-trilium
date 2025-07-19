@@ -47,7 +47,8 @@ describe('createNote', () => {
       expect(mockTriliumClient.post).toHaveBeenCalledWith('create-note', {
         title: 'My Test Note',
         content: 'This is the note content',
-        type: 'text'
+        type: 'text',
+        parentNoteId: 'root'
       });
 
       expect(result.content).toHaveLength(2);
@@ -114,7 +115,8 @@ describe('createNote', () => {
       expect(mockTriliumClient.post).toHaveBeenCalledWith('create-note', {
         title: 'JavaScript Code',
         content: 'console.log("Hello World");',
-        type: 'code'
+        type: 'code',
+        parentNoteId: 'root'
       });
     });
 
@@ -138,7 +140,8 @@ describe('createNote', () => {
       expect(mockTriliumClient.post).toHaveBeenCalledWith('create-note', {
         title: 'Root Note',
         content: 'Root content',
-        type: 'text'
+        type: 'text',
+        parentNoteId: 'root'
       });
 
       const jsonData = JSON.parse(result.content[1].text);
@@ -316,7 +319,8 @@ describe('createNote', () => {
       expect(mockTriliumClient.post).toHaveBeenCalledWith('create-note', {
         title: 'Trimmed Title',
         content: 'Content',
-        type: 'text'
+        type: 'text',
+        parentNoteId: 'root'
       });
     });
   });
@@ -453,7 +457,8 @@ describe('createNote', () => {
       expect(mockTriliumClient.post).toHaveBeenCalledWith('create-note', {
         title: 'Special & "Chars" <Test>',
         content: 'Content with special chars: !@#$%^&*(){}[]|\\:";\'<>?,./',
-        type: 'text'
+        type: 'text',
+        parentNoteId: 'root'
       });
 
       expect(result.content[0].text).toBe('Note created: "Special & "Chars" <Test>" (ID: special123)');

@@ -43,7 +43,8 @@ describe('updateNote', () => {
     // Reset mock client before each test
     mockClient = {
       get: jest.fn(),
-      put: jest.fn()
+      put: jest.fn(),
+      putRaw: jest.fn()
     };
     jest.clearAllMocks();
   });
@@ -60,7 +61,7 @@ describe('updateNote', () => {
       };
 
       mockClient.get.mockResolvedValueOnce(existingNote); // Note exists check
-      mockClient.put.mockResolvedValueOnce({}); // Content update
+      mockClient.putRaw.mockResolvedValueOnce({}); // Content update
       mockClient.get.mockResolvedValueOnce(updatedNote); // Updated note info
 
       // Act
@@ -68,7 +69,7 @@ describe('updateNote', () => {
 
       // Assert
       expect(mockClient.get).toHaveBeenCalledWith(`notes/${noteId}`);
-      expect(mockClient.put).toHaveBeenCalledWith(`notes/${noteId}/content`, { content });
+      expect(mockClient.putRaw).toHaveBeenCalledWith(`notes/${noteId}/content`, content);
       expect(mockClient.get).toHaveBeenCalledWith(`notes/${noteId}`);
       
       expect(result.content).toHaveLength(2);
@@ -100,7 +101,7 @@ describe('updateNote', () => {
       };
 
       mockClient.get.mockResolvedValueOnce(noteWithoutTitle);
-      mockClient.put.mockResolvedValueOnce({});
+      mockClient.putRaw.mockResolvedValueOnce({});
       mockClient.get.mockResolvedValueOnce(updatedNote);
 
       // Act
@@ -124,7 +125,7 @@ describe('updateNote', () => {
       };
 
       mockClient.get.mockResolvedValueOnce(codeNote);
-      mockClient.put.mockResolvedValueOnce({});
+      mockClient.putRaw.mockResolvedValueOnce({});
       mockClient.get.mockResolvedValueOnce(updatedNote);
 
       // Act
@@ -146,7 +147,7 @@ describe('updateNote', () => {
       };
 
       mockClient.get.mockResolvedValueOnce(existingNote);
-      mockClient.put.mockResolvedValueOnce({});
+      mockClient.putRaw.mockResolvedValueOnce({});
       mockClient.get.mockResolvedValueOnce(updatedNote);
 
       // Act
@@ -168,7 +169,7 @@ describe('updateNote', () => {
       expect(result.content[0].text).toContain('Validation error:');
       expect(result.content[0].text).toContain('Note ID must be a non-empty string');
       expect(mockClient.get).not.toHaveBeenCalled();
-      expect(mockClient.put).not.toHaveBeenCalled();
+      expect(mockClient.putRaw).not.toHaveBeenCalled();
     });
 
     test('should reject null noteId', async () => {
@@ -208,7 +209,7 @@ describe('updateNote', () => {
       const updatedNote = { ...existingNote, dateModified: '2024-01-25T15:30:00.000Z' };
 
       mockClient.get.mockResolvedValueOnce(existingNote);
-      mockClient.put.mockResolvedValueOnce({});
+      mockClient.putRaw.mockResolvedValueOnce({});
       mockClient.get.mockResolvedValueOnce(updatedNote);
 
       // Act
@@ -216,7 +217,7 @@ describe('updateNote', () => {
 
       // Assert
       expect(result.isError).not.toBe(true);
-      expect(mockClient.put).toHaveBeenCalledWith('notes/note123/content', { content: maxContent });
+      expect(mockClient.putRaw).toHaveBeenCalledWith('notes/note123/content', maxContent);
     });
   });
 
@@ -234,7 +235,7 @@ describe('updateNote', () => {
       // Assert
       expect(result.isError).toBe(true);
       expect(result.content[0].text).toContain(`Note not found: ${noteId}`);
-      expect(mockClient.put).not.toHaveBeenCalled();
+      expect(mockClient.putRaw).not.toHaveBeenCalled();
     });
 
     test('should handle null response when checking note existence', async () => {
@@ -249,7 +250,7 @@ describe('updateNote', () => {
       // Assert
       expect(result.isError).toBe(true);
       expect(result.content[0].text).toContain(`Note not found: ${noteId}`);
-      expect(mockClient.put).not.toHaveBeenCalled();
+      expect(mockClient.putRaw).not.toHaveBeenCalled();
     });
   });
 
@@ -262,7 +263,7 @@ describe('updateNote', () => {
       const error = new TriliumAPIError('Access forbidden', 403);
 
       mockClient.get.mockResolvedValueOnce(existingNote);
-      mockClient.put.mockRejectedValueOnce(error);
+      mockClient.putRaw.mockRejectedValueOnce(error);
 
       // Act
       const result = await updateNote(mockClient, { noteId, content });
@@ -281,7 +282,7 @@ describe('updateNote', () => {
       const error = new TriliumAPIError('Authentication failed', 401);
 
       mockClient.get.mockResolvedValueOnce(existingNote);
-      mockClient.put.mockRejectedValueOnce(error);
+      mockClient.putRaw.mockRejectedValueOnce(error);
 
       // Act
       const result = await updateNote(mockClient, { noteId, content });
@@ -299,7 +300,7 @@ describe('updateNote', () => {
       const error = new TriliumAPIError('Internal server error', 500);
 
       mockClient.get.mockResolvedValueOnce(existingNote);
-      mockClient.put.mockRejectedValueOnce(error);
+      mockClient.putRaw.mockRejectedValueOnce(error);
 
       // Act
       const result = await updateNote(mockClient, { noteId, content });
@@ -318,7 +319,7 @@ describe('updateNote', () => {
       error.code = 'ECONNREFUSED';
 
       mockClient.get.mockResolvedValueOnce(existingNote);
-      mockClient.put.mockRejectedValueOnce(error);
+      mockClient.putRaw.mockRejectedValueOnce(error);
 
       // Act
       const result = await updateNote(mockClient, { noteId, content });
@@ -338,7 +339,7 @@ describe('updateNote', () => {
       const updatedNote = { ...existingNote, dateModified: '2024-01-25T15:30:00.000Z' };
 
       mockClient.get.mockResolvedValueOnce(existingNote);
-      mockClient.put.mockResolvedValueOnce({});
+      mockClient.putRaw.mockResolvedValueOnce({});
       mockClient.get.mockResolvedValueOnce(updatedNote);
 
       // Act
@@ -389,7 +390,7 @@ describe('updateNote', () => {
       const updatedNote = { ...existingNote, dateModified: '2024-01-25T15:30:00.000Z' };
 
       mockClient.get.mockResolvedValueOnce(existingNote);
-      mockClient.put.mockResolvedValueOnce({});
+      mockClient.putRaw.mockResolvedValueOnce({});
       mockClient.get.mockResolvedValueOnce(updatedNote);
 
       // Act
@@ -397,10 +398,10 @@ describe('updateNote', () => {
 
       // Assert
       expect(mockClient.get).toHaveBeenNthCalledWith(1, `notes/${noteId}`);
-      expect(mockClient.put).toHaveBeenNthCalledWith(1, `notes/${noteId}/content`, { content });
+      expect(mockClient.putRaw).toHaveBeenNthCalledWith(1, `notes/${noteId}/content`, content);
       expect(mockClient.get).toHaveBeenNthCalledWith(2, `notes/${noteId}`);
       expect(mockClient.get).toHaveBeenCalledTimes(2);
-      expect(mockClient.put).toHaveBeenCalledTimes(1);
+      expect(mockClient.putRaw).toHaveBeenCalledTimes(1);
     });
 
     test('should not make update call if note existence check fails', async () => {
@@ -415,7 +416,7 @@ describe('updateNote', () => {
 
       // Assert
       expect(mockClient.get).toHaveBeenCalledTimes(1);
-      expect(mockClient.put).not.toHaveBeenCalled();
+      expect(mockClient.putRaw).not.toHaveBeenCalled();
     });
   });
 });
