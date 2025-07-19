@@ -6,11 +6,13 @@ export async function getRecentNotesResource(triliumClient) {
     logger.debug('Fetching recent notes resource');
 
     // Get recently modified notes from TriliumNext API
-    const notes = await triliumClient.get('notes?orderBy=dateModified&orderDirection=desc&limit=10');
+    const response = await triliumClient.get('notes?search=*&orderBy=dateModified&orderDirection=desc&limit=10');
     
-    if (!Array.isArray(notes)) {
-      throw new TriliumAPIError('Invalid response from TriliumNext API - expected array of notes');
+    if (!response || !Array.isArray(response.results)) {
+      throw new TriliumAPIError('Invalid response from TriliumNext API - expected object with results array');
     }
+    
+    const notes = response.results;
 
     logger.info(`Retrieved ${notes.length} recent notes`);
 
@@ -21,10 +23,10 @@ export async function getRecentNotesResource(triliumClient) {
       type: note.type || 'text',
       dateCreated: note.dateCreated,
       dateModified: note.dateModified,
-      parentNoteId: note.parentNoteId,
+      parentNoteIds: note.parentNoteIds || [],
       isProtected: note.isProtected || false,
       // Include basic metadata but not full content for performance
-      contentLength: note.contentLength || 0,
+      mime: note.mime,
       attributes: note.attributes || []
     }));
 
