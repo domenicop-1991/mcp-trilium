@@ -17,6 +17,7 @@ import { createNote } from './tools/create-note.js';
 import { searchNotes } from './tools/search-notes.js';
 import { getNote } from './tools/get-note.js';
 import { updateNote } from './tools/update-note.js';
+import { listAttributes } from './tools/list-attributes.js';
 import { getRecentNotesResource } from './resources/recent-notes.js';
 
 class TriliumMCPServer {
@@ -132,6 +133,18 @@ class TriliumMCPServer {
               required: ['noteId', 'content'],
             },
           },
+          {
+            name: 'list_attributes',
+            description: 'List all attributes (labels and relations) of a note',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                noteId: { type: 'string', description: 'The ID of the note' },
+                type: { type: 'string', enum: ['label', 'relation'], description: 'Filter by attribute type (optional)' }
+              },
+              required: ['noteId']
+            }
+          },
         ],
       };
     });
@@ -149,6 +162,8 @@ class TriliumMCPServer {
             return await this.getNote(request.params.arguments);
           case 'update_note':
             return await this.updateNote(request.params.arguments);
+          case 'list_attributes':
+            return await this.listAttributes(request.params.arguments);
           default:
             throw new Error(`Unknown tool: ${request.params.name}`);
         }
@@ -212,6 +227,10 @@ class TriliumMCPServer {
 
   async updateNote(args) {
     return await updateNote(this.triliumClient, args);
+  }
+
+  async listAttributes(args) {
+    return await listAttributes(this.triliumClient, args);
   }
 
   async getRecentNotesResource() {
