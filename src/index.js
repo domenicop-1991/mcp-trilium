@@ -18,6 +18,7 @@ import { searchNotes } from './tools/search-notes.js';
 import { getNote } from './tools/get-note.js';
 import { updateNote } from './tools/update-note.js';
 import { listAttributes } from './tools/list-attributes.js';
+import { createAttribute } from './tools/create-attribute.js';
 import { getRecentNotesResource } from './resources/recent-notes.js';
 
 class TriliumMCPServer {
@@ -145,6 +146,22 @@ class TriliumMCPServer {
               required: ['noteId']
             }
           },
+          {
+            name: 'create_attribute',
+            description: 'Create a new label or relation on a note',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                noteId: { type: 'string', description: 'Note to attach the attribute to' },
+                type: { type: 'string', enum: ['label', 'relation'], description: "'label' for #tag, 'relation' for ~link" },
+                name: { type: 'string', description: 'Attribute name without # or ~ prefix (a-zA-Z0-9_)' },
+                value: { type: 'string', description: "Label value (optional, empty allowed) or target noteId for relations (required)" },
+                isInheritable: { type: 'boolean', default: false },
+                position: { type: 'number' }
+              },
+              required: ['noteId', 'type', 'name']
+            }
+          },
         ],
       };
     });
@@ -164,6 +181,8 @@ class TriliumMCPServer {
             return await this.updateNote(request.params.arguments);
           case 'list_attributes':
             return await this.listAttributes(request.params.arguments);
+          case 'create_attribute':
+            return await this.createAttribute(request.params.arguments);
           default:
             throw new Error(`Unknown tool: ${request.params.name}`);
         }
@@ -231,6 +250,10 @@ class TriliumMCPServer {
 
   async listAttributes(args) {
     return await listAttributes(this.triliumClient, args);
+  }
+
+  async createAttribute(args) {
+    return await createAttribute(this.triliumClient, args);
   }
 
   async getRecentNotesResource() {
