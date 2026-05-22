@@ -10,7 +10,7 @@ export async function moveNote(triliumClient, args) {
     const oldParentHint = args.oldParentNoteId ? validators.noteId(args.oldParentNoteId) : null;
 
     const note = await triliumClient.get(`notes/${noteId}`);
-    const branchIds = Array.isArray(note?.branchIds) ? note.branchIds : [];
+    const branchIds = Array.isArray(note?.parentBranchIds) ? note.parentBranchIds : [];
 
     if (branchIds.length === 0) {
       throw new ValidationError(`Note ${noteId} has no branches; cannot move`);
@@ -46,18 +46,25 @@ export async function moveNote(triliumClient, args) {
       resolvedOldParent = currentBranch?.parentNoteId;
     }
 
-    logger.debug(`Moving branch ${branchId} from ${resolvedOldParent} to ${newParentNoteId}`);
-    await triliumClient.put(`branches/${branchId}`, { parentNoteId: newParentNoteId });
+    logger.debug(`Moving note ${noteId}: creating branch under ${newParentNoteId}, then deleting branch ${branchId}`);
+    const newBranch = await triliumClient.post('branches', {
+      noteId,
+      parentNoteId: newParentNoteId,
+      prefix: '',
+      isExpanded: false,
+      notePosition: 0
+    });
+    await triliumClient.delete(`branches/${branchId}`);
 
     const data = {
       operation: 'move_note',
       timestamp: new Date().toISOString(),
       request: { noteId, newParentNoteId, branchId: explicitBranchId, oldParentNoteId: oldParentHint },
-      result: { noteId, branchId, oldParentNoteId: resolvedOldParent, newParentNoteId }
+      result: { noteId, branchId: newBranch.branchId, oldParentNoteId: resolvedOldParent, newParentNoteId }
     };
     return {
       content: [
-        { type: 'text', text: `Note ${noteId} moved (branch ${branchId}: ${resolvedOldParent} → ${newParentNoteId})` },
+        { type: 'text', text: `Note ${noteId} moved (${resolvedOldParent} → ${newParentNoteId})` },
         { type: 'text', text: JSON.stringify(data, null, 2) }
       ]
     };

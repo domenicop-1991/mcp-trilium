@@ -17,25 +17,12 @@ export async function listChildren(triliumClient, args) {
     const noteId = validators.noteId(args.noteId);
     const limit = validators.limit(args.limit ?? 50);
 
-    const params = new URLSearchParams({
-      search: '',
-      ancestorNoteId: noteId,
-      ancestorDepth: 'eq1',
-      limit: String(limit)
-    });
-    const url = `notes?${params.toString()}`;
-    logger.debug(`Listing children: ${url}`);
-    const raw = await triliumClient.get(url);
+    logger.debug(`Listing children of note ${noteId}`);
+    const note = await triliumClient.get(`notes/${noteId}`);
+    const childNoteIds = Array.isArray(note?.childNoteIds) ? note.childNoteIds : [];
 
-    let children;
-    if (Array.isArray(raw)) {
-      children = raw;
-    } else if (raw && Array.isArray(raw.results)) {
-      children = raw.results;
-    } else {
-      throw new TriliumAPIError(`Unexpected response format from notes search (expected array or {results: []}, got ${typeof raw})`, 500, { response: raw });
-    }
-
+    const sliced = childNoteIds.slice(0, limit);
+    const children = await Promise.all(sliced.map(id => triliumClient.get(`notes/${id}`)));
     const projected = children.map(projectNote);
 
     const data = {
