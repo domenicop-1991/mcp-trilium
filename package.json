@@ -38,14 +38,14 @@
     "model-context-protocol",
     "ai-tools"
   ],
-  "author": "",
+  "author": "domenicop-1991",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/your-username/mcp-trilium.git"
+    "url": "git+https://github.com/domenicop-1991/mcp-trilium.git"
   },
   "bugs": {
-    "url": "https://github.com/your-username/mcp-trilium/issues"
+    "url": "https://github.com/domenicop-1991/mcp-trilium/issues"
   },
-  "homepage": "https://github.com/your-username/mcp-trilium#readme"
+  "homepage": "https://github.com/domenicop-1991/mcp-trilium#readme"
 }
