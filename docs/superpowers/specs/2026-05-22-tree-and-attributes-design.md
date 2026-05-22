@@ -39,68 +39,9 @@ Versione package: bump a `0.2.0` al completamento di tutte le fasi.
 
 ## Componenti per fase
 
-### Fase 1 — `delete_note`
+**Ordine fasi (rev 2)**: scelto di seguire la priorità d'uso dichiarata dall'utente: prima attributi (capability più richiesta per il pattern wikilink), poi tree navigation, infine delete. Tradeoff accettato: attribute è la fase con più superficie ETAPI, la affrontiamo senza la "pipeline rodata" delle fasi più semplici; in cambio sblocchiamo subito il caso d'uso prioritario.
 
-Tool unico. Chiama `DELETE /notes/{noteId}`. Il client `TriliumClient.delete()` è già pronto.
-
-**Input schema**:
-```json
-{
-  "noteId": "string (required) — ID della nota da cancellare"
-}
-```
-
-**Semantica**: cancellazione cascata di tutte le sotto-note che hanno questa come **unico parent**. Note clonate sotto altri parent restano vive sotto i loro altri branch (comportamento standard ETAPI). Si lascia all'utente la responsabilità: nessuna conferma extra, nessuna "dry run". L'utente che invoca Claude ha già scelto di delegare; se serve sicurezza in più si aggiunge dopo.
-
-**Validazione**: `validators.noteId(args.noteId)`. Rifiuto esplicito se `noteId === 'root'` (cancellare root rompe il vault).
-
-**Output**: `{operation, timestamp, request:{noteId}, result:{noteId, deleted:true}}`.
-
-**Errori**: 404 → "Note not found", 400/403 → propagati, root → ValidationError.
-
-### Fase 2 — Tree navigation
-
-Due tool nuovi.
-
-#### `list_children`
-
-Lista i figli diretti di una nota. Implementato via `GET /notes?search=&ancestorNoteId={id}&ancestorDepth=eq1`. Risposta filtrata sui campi rilevanti.
-
-**Input schema**:
-```json
-{
-  "noteId": "string (required) — ID della nota parent",
-  "limit": "number (1..100, default 50) — max figli da ritornare"
-}
-```
-
-**Output**: array di `{noteId, title, type, mime, dateModified}`. Si esclude `childrenCount` dalla v1: richiederebbe N+1 query e non c'è ancora un caso d'uso che lo giustifichi (YAGNI). Se servirà, si aggiunge in un design successivo con flag opt-in.
-
-**Note design**: ETAPI search ha un quirk — richiede `search` parameter, anche vuoto. Si passa `search=""` con `ancestorNoteId` e `ancestorDepth=eq1`. Da validare nel test di connettività.
-
-#### `move_note`
-
-Sposta una nota sotto un nuovo parent. In Trilium una nota può avere più branch (cloni); per la v1 si gestisce solo il caso single-branch (99% dei casi); se la nota ha più branch, si rifiuta con errore esplicito chiedendo di passare `branchId`.
-
-Algoritmo:
-1. `GET /notes/{noteId}` → leggi `branchIds[]`.
-2. Se `branchIds.length === 1`, usa quello. Se `> 1` e `args.branchId` non fornito → errore. Se `args.branchId` fornito, verificato che appartenga alla nota.
-3. `PUT /branches/{branchId}` con body `{parentNoteId: newParentId}`.
-
-**Input schema**:
-```json
-{
-  "noteId": "string (required) — nota da spostare",
-  "newParentNoteId": "string (required) — nuovo parent",
-  "branchId": "string (optional) — necessario solo se la nota ha più di un branch (clone)"
-}
-```
-
-**Output**: `{operation, timestamp, request, result: {noteId, oldParent, newParent, branchId}}`.
-
-**Errori**: 404 (nota o parent inesistente), 409 (ciclo: sposterebbe sotto un proprio discendente — l'API restituisce conflict), multi-branch senza `branchId` esplicito → ValidationError lato nostro.
-
-### Fase 3 — Attributes CRUD
+### Fase 1 — Attributes CRUD
 
 Quattro tool. L'oggetto `Attribute` ETAPI: `{attributeId, noteId, type (label|relation), name, value, position, isInheritable}`.
 
@@ -125,7 +66,7 @@ Convenzioni Trilium da rispettare:
 {
   "noteId": "string (required)",
   "type": "string (required, enum: label|relation)",
-  "name": "string (required) — senza prefisso # o ~",
+  "name": "string (required) — senza prefisso # o ~, regex [a-zA-Z0-9_]+",
   "value": "string (optional per label, required per relation = noteId target)",
   "isInheritable": "boolean (default false)",
   "position": "number (optional)"
@@ -145,6 +86,79 @@ Convenzioni Trilium da rispettare:
 `DELETE /attributes/{attributeId}`.
 
 **Input**: `{attributeId}`.
+
+### Fase 2 — Tree navigation
+
+Due tool nuovi.
+
+#### `list_children`
+
+Lista i figli diretti di una nota. Implementato via `GET /notes?search=&ancestorNoteId={id}&ancestorDepth=eq1`. Risposta filtrata sui campi rilevanti.
+
+**Input schema**:
+```json
+{
+  "noteId": "string (required) — ID della nota parent",
+  "limit": "number (1..100, default 50) — max figli da ritornare"
+}
+```
+
+**Output**: array di `{noteId, title, type, mime, dateModified}`. Si esclude `childrenCount` dalla v1: richiederebbe N+1 query e non c'è ancora un caso d'uso che lo giustifichi (YAGNI). Se servirà, si aggiunge in un design successivo con flag opt-in.
+
+**Note design**: ETAPI search ha un quirk — richiede `search` parameter, anche vuoto. Si passa `search=""` con `ancestorNoteId` e `ancestorDepth=eq1`. Da validare nel test di connettività.
+
+#### `move_note`
+
+Sposta una nota sotto un nuovo parent. Trilium permette i **cloni** (una nota presente sotto più parent tramite branch multipli). Il tool li supporta da subito.
+
+Risoluzione del branch da spostare, in ordine di priorità:
+1. `args.branchId` se fornito → verifica che appartenga a `noteId`.
+2. `args.oldParentNoteId` se fornito → cerca il branch con quel `parentNoteId`. Se nessuno corrisponde, errore esplicito.
+3. Se la nota ha un solo branch, usa l'unico.
+4. Altrimenti (multi-branch senza `branchId` né `oldParentNoteId`) → ValidationError con elenco dei `branchIds` e dei rispettivi `parentNoteId` per aiutare il chiamante a scegliere.
+
+Algoritmo:
+1. `GET /notes/{noteId}` → leggi `branchIds[]` e per ciascuno `GET /branches/{branchId}` per scoprire i `parentNoteId` (necessario solo se serve la risoluzione step 2 o per ramificare in step 4; ottimizzazione possibile: parallelizza con `Promise.all`).
+2. Risolvi il branch target con la logica sopra.
+3. `PUT /branches/{branchId}` con body `{parentNoteId: newParentNoteId}`.
+
+**Input schema**:
+```json
+{
+  "noteId": "string (required) — nota da spostare",
+  "newParentNoteId": "string (required) — nuovo parent",
+  "branchId": "string (optional) — id esplicito del branch da spostare",
+  "oldParentNoteId": "string (optional) — parent attuale del branch da spostare (alternativa più ergonomica a branchId)"
+}
+```
+
+**Output**: `{operation, timestamp, request, result: {noteId, branchId, oldParentNoteId, newParentNoteId}}`.
+
+**Errori**: 404 (nota o parent inesistente), 409 (ciclo: sposterebbe sotto un proprio discendente — l'API restituisce conflict), multi-branch senza disambiguazione → ValidationError lato nostro con dettagli (lista branch disponibili).
+
+### Fase 3 — `delete_note`
+
+Tool unico. Chiama `DELETE /notes/{noteId}`. Il client `TriliumClient.delete()` è già pronto.
+
+**Input schema**:
+```json
+{
+  "noteId": "string (required) — ID della nota da cancellare",
+  "confirmCascade": "boolean (default false) — obbligatorio true se la nota ha figli"
+}
+```
+
+**Semantica**: cancellazione cascata di tutte le sotto-note che hanno questa come **unico parent**. Note clonate sotto altri parent restano vive sotto i loro altri branch (comportamento standard ETAPI). Trilium ha soft-delete (`isDeleted:true`) recuperabile dall'UI, quindi non è perdita irreversibile.
+
+**Guardrail**: prima di chiamare DELETE, il tool fa `GET /notes?ancestorNoteId={noteId}&ancestorDepth=eq1&limit=1` per scoprire se ci sono figli. Se ce ne sono e `confirmCascade !== true`, ValidationError con dettagli ("Note has N children; pass confirmCascade:true to delete subtree"). Questo evita il classico "Claude cancella per sbaglio metà del vault perché ha confuso un ID". Cancellare una foglia: diretto, nessun overhead.
+
+**Validazione**: `validators.noteId(args.noteId)`. Rifiuto esplicito se `noteId === 'root'`.
+
+**Output**: `{operation, timestamp, request:{noteId, confirmCascade}, result:{noteId, deleted:true, hadChildren:boolean}}`.
+
+**Errori**: 404 → "Note not found", 400/403 → propagati, root → ValidationError, has-children-without-confirm → ValidationError.
+
+Si è scelto di NON aggiungere un `dry_run`: il sistema di soft-delete + backup di Trilium copre già il caso "ho cancellato qualcosa per sbaglio", e `list_children` permette di vedere in anticipo cosa verrebbe cancellato senza serve un flag dedicato.
 
 ## Data flow
 
@@ -173,7 +187,11 @@ Replica esattamente il pattern di `update-note.js`:
 
 Nuovo: per `delete_note` con `noteId === 'root'`, ValidationError immediato senza chiamare ETAPI ("Cannot delete root note").
 
+Nuovo: per `delete_note` con figli e `confirmCascade !== true`, ValidationError prima della DELETE ("Note has N children; pass confirmCascade:true to delete subtree").
+
 Nuovo: per `create_attribute` con `type='relation'` e target inesistente, ValidationError ("Relation target {noteId} does not exist").
+
+Nuovo: per `move_note` multi-branch senza disambiguazione, ValidationError con elenco dei branch disponibili per aiutare il chiamante a scegliere `branchId` o `oldParentNoteId`.
 
 ## Testing
 
@@ -188,9 +206,9 @@ Per ogni nuovo tool, file `tests/<tool>.test.js` con questi casi minimi:
 Coverage target ≥90% sui nuovi file. Si lascia inalterato il setup Jest esistente.
 
 **Test di integrazione**: dopo ogni fase, smoke manuale sul Trilium reale (`http://100.95.56.11:8080`):
-1. Fase 1: crea nota dummy, cancellala, verifica via UI.
-2. Fase 2: crea albero a 3 livelli, lista figli, sposta sottoalbero.
-3. Fase 3: crea label `#test` su una nota, aggiorna value, crea relation `~related` verso altra nota, lista, cancella.
+1. Fase 1 (attributes): crea label `#test` su una nota, aggiorna value, crea relation `~related` verso altra nota, lista filtrando per type, cancella.
+2. Fase 2 (tree): crea albero a 3 livelli, lista figli a vari livelli, sposta sottoalbero. Test extra con clone (nota in due parent): crea il clone, sposta uno dei due branch, verifica che l'altro sia intatto.
+3. Fase 3 (delete): crea nota foglia → cancella diretta. Crea sottoalbero → tenta cancellazione senza `confirmCascade` (deve fallire) → ritenta con `confirmCascade:true` (deve riuscire). Verifica via UI che `isDeleted:true` sia coerente.
 
 ## Migrazione e housekeeping
 
@@ -207,7 +225,7 @@ Coverage target ≥90% sui nuovi file. Si lascia inalterato il setup Jest esiste
 ## Rischi noti
 
 1. **ETAPI search con `ancestorDepth=eq1`**: non testato dal client attuale. Se non funziona come documentato, fallback a `GET /notes/{id}` e parsing di `branchIds` per scoprire i figli (richiede chiamate aggiuntive ma è sicuro).
-2. **Cloni multi-branch in `move_note`**: scelto di rifiutare. Se l'utente li usa di frequente, va riconsiderato.
+2. **Cloni multi-branch in `move_note`**: supportati tramite `branchId` o `oldParentNoteId`. Costo: una chiamata aggiuntiva `GET /branches/{id}` per branch nel caso multi-branch (raro nella pratica). Trascurabile.
 3. **Attribute con `name` contenente caratteri speciali**: ETAPI accetta solo `[a-zA-Z0-9_]` per i nomi label/relation. Validazione lato nostro per fail-fast prima della chiamata HTTP.
 4. **Race condition multi-client**: due Claude su due PC (fisso e portatile) potrebbero scrivere insieme. Trilium gestisce server-side con timestamp. Non mitiga il MCP server.
 
