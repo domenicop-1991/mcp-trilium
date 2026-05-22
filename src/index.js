@@ -1,7 +1,11 @@
 #!/usr/bin/env node
 
 import 'dotenv/config';
+import { createRequire } from 'module';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+
+const require = createRequire(import.meta.url);
+const { version: PACKAGE_VERSION } = require('../package.json');
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import {
   CallToolRequestSchema,
@@ -31,7 +35,7 @@ class TriliumMCPServer {
     this.server = new Server(
       {
         name: 'mcp-trilium',
-        version: '0.1.0',
+        version: PACKAGE_VERSION,
       },
       {
         capabilities: {

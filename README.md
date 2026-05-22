@@ -282,6 +282,11 @@ The following features may be added in future versions:
 
 ## Changelog
 
+### v0.2.1
+- Fix: src/index.js reads version from package.json (was hardcoded 0.1.0)
+- Fix: move_note communicates partial state when DELETE fails after POST
+- Fix: list_children uses Promise.allSettled to tolerate concurrent child deletions
+
 ### v0.2.0
 - Add 7 new tools: list_attributes, create_attribute, update_attribute, delete_attribute, list_children, move_note, delete_note
 - Align MCP response mime type to 'text' (spec-compliant)

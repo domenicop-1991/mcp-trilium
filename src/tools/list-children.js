@@ -22,14 +22,19 @@ export async function listChildren(triliumClient, args) {
     const childNoteIds = Array.isArray(note?.childNoteIds) ? note.childNoteIds : [];
 
     const sliced = childNoteIds.slice(0, limit);
-    const children = await Promise.all(sliced.map(id => triliumClient.get(`notes/${id}`)));
+    const settled = await Promise.allSettled(sliced.map(id => triliumClient.get(`notes/${id}`)));
+    const children = settled.filter(s => s.status === 'fulfilled').map(s => s.value);
+    const failedCount = settled.length - children.length;
+    if (failedCount > 0) {
+      logger.warn(`list_children: ${failedCount} child note(s) under ${noteId} failed to fetch (possibly deleted concurrently)`);
+    }
     const projected = children.map(projectNote);
 
     const data = {
       operation: 'list_children',
       timestamp: new Date().toISOString(),
       request: { noteId, limit },
-      result: { noteId, count: projected.length, children: projected }
+      result: { noteId, count: projected.length, ...(failedCount > 0 && { failedCount }), children: projected }
     };
     return {
       content: [

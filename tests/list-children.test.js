@@ -3,7 +3,7 @@ import { listChildren } from '../src/tools/list-children.js';
 import { TriliumAPIError } from '../src/utils/trilium-client.js';
 
 jest.mock('../src/utils/logger.js', () => ({
-  logger: { debug: jest.fn(), info: jest.fn(), error: jest.fn() }
+  logger: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() }
 }));
 
 describe('listChildren', () => {
@@ -93,5 +93,19 @@ describe('listChildren', () => {
     const result = await listChildren(mockClient, { noteId: 'n' });
     expect(result.isError).toBe(true);
     expect(result.content[0].text).toContain('TriliumNext API error');
+  });
+
+  test('handles concurrent child deletion (Promise.allSettled)', async () => {
+    mockClient.get
+      .mockResolvedValueOnce({ noteId: 'parent', childNoteIds: ['c1', 'c2', 'c3'] })
+      .mockResolvedValueOnce({ noteId: 'c1', title: 'Child 1', type: 'text' })
+      .mockRejectedValueOnce(new TriliumAPIError('Resource not found', 404, {}))
+      .mockResolvedValueOnce({ noteId: 'c3', title: 'Child 3', type: 'text' });
+
+    const result = await listChildren(mockClient, { noteId: 'parent' });
+    expect(result.isError).toBeUndefined();
+    const data = JSON.parse(result.content[1].text);
+    expect(data.result.children).toHaveLength(2);
+    expect(data.result.failedCount).toBe(1);
   });
 });

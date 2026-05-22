@@ -54,7 +54,27 @@ export async function moveNote(triliumClient, args) {
       isExpanded: false,
       notePosition: 0
     });
-    await triliumClient.delete(`branches/${branchId}`);
+    try {
+      await triliumClient.delete(`branches/${branchId}`);
+    } catch (deleteError) {
+      const partialData = {
+        operation: 'move_note',
+        timestamp: new Date().toISOString(),
+        request: { noteId, newParentNoteId, branchId: explicitBranchId, oldParentNoteId: oldParentHint },
+        partialState: {
+          newBranchCreated: newBranch.branchId,
+          oldBranchNotDeleted: branchId,
+          deleteError: deleteError.message
+        }
+      };
+      return {
+        content: [
+          { type: 'text', text: `Move partially failed: new branch ${newBranch.branchId} created under ${newParentNoteId}, but old branch ${branchId} could not be deleted (${deleteError.message}). Note is now cloned. Manual cleanup of branch ${branchId} required.` },
+          { type: 'text', text: JSON.stringify(partialData, null, 2) }
+        ],
+        isError: true
+      };
+    }
 
     const data = {
       operation: 'move_note',

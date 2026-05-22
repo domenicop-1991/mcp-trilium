@@ -108,4 +108,18 @@ describe('moveNote', () => {
     expect(result.isError).toBe(true);
     expect(result.content[0].text).toContain('Failed to move note');
   });
+
+  test('partial failure: POST ok, DELETE fail communicates state', async () => {
+    mockClient.get.mockResolvedValueOnce({ noteId: 'n1', parentBranchIds: ['b1'] });
+    mockClient.get.mockResolvedValueOnce({ branchId: 'b1', noteId: 'n1', parentNoteId: 'old' });
+    mockClient.post.mockResolvedValueOnce({ branchId: 'b-new', noteId: 'n1', parentNoteId: 'new' });
+    mockClient.delete.mockRejectedValueOnce(new TriliumAPIError('Network', 500, {}));
+
+    const result = await moveNote(mockClient, { noteId: 'n1', newParentNoteId: 'new' });
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain('Move partially failed');
+    expect(result.content[0].text).toContain('b-new');
+    expect(result.content[0].text).toContain('b1');
+  });
 });
