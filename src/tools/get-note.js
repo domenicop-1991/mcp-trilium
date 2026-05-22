@@ -42,14 +42,7 @@ export async function getNote(triliumClient, args) {
         content: {
           type: typeof content === 'string' ? 'text' : 'binary',
           length: typeof content === 'string' ? content.length : 0,
-          ...(typeof content === 'string' && content.length <= 10000 && { 
-            data: content 
-          }),
-          ...(typeof content === 'string' && content.length > 10000 && { 
-            preview: content.substring(0, 1000) + '...',
-            truncated: true,
-            fullLength: content.length
-          })
+          ...(typeof content === 'string' && { data: content })
         },
         triliumUrl: `trilium://note/${noteId}`
       }

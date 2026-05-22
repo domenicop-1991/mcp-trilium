@@ -90,13 +90,13 @@ describe('getNote', () => {
       expect(parsedData.note.title).toBe('Untitled');
     });
 
-    test('should handle large content with truncation', async () => {
+    test('should return full content for large notes (no truncation)', async () => {
       const mockNote = {
         noteId: 'note123',
         title: 'Large Note',
         type: 'text'
       };
-      const largeContent = 'A'.repeat(15000); // Exceeds 10000 char limit
+      const largeContent = 'A'.repeat(15000);
 
       mockTriliumClient.get
         .mockResolvedValueOnce(mockNote)
@@ -109,10 +109,9 @@ describe('getNote', () => {
       const parsedData = JSON.parse(result.content[1].text);
       expect(parsedData.note.content.type).toBe('text');
       expect(parsedData.note.content.length).toBe(15000);
-      expect(parsedData.note.content.truncated).toBe(true);
-      expect(parsedData.note.content.fullLength).toBe(15000);
-      expect(parsedData.note.content.preview).toBe('A'.repeat(1000) + '...');
-      expect(parsedData.note.content.data).toBeUndefined();
+      expect(parsedData.note.content.data).toBe(largeContent);
+      expect(parsedData.note.content.truncated).toBeUndefined();
+      expect(parsedData.note.content.preview).toBeUndefined();
     });
 
     test('should handle binary content', async () => {
