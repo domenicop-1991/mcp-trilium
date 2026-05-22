@@ -9,7 +9,13 @@ export async function createAttribute(triliumClient, args) {
     const name = validators.attributeName(args.name);
     const value = args.value !== undefined && args.value !== null ? String(args.value) : '';
     const isInheritable = Boolean(args.isInheritable);
-    const position = args.position !== undefined ? Number(args.position) : undefined;
+    let position;
+    if (args.position !== undefined && args.position !== null) {
+      position = Number(args.position);
+      if (Number.isNaN(position)) {
+        throw new ValidationError('position must be a valid number');
+      }
+    }
 
     if (type === 'relation') {
       if (!value || value.trim().length === 0) {

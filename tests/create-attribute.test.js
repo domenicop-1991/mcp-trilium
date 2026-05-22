@@ -71,4 +71,11 @@ describe('createAttribute', () => {
     expect(result.isError).toBe(true);
     expect(result.content[0].text).toContain('TriliumNext API error');
   });
+
+  test('rejects non-numeric position', async () => {
+    const result = await createAttribute(mockClient, { noteId: 'n1', type: 'label', name: 'x', position: 'high' });
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain('Validation error');
+    expect(mockClient.post).not.toHaveBeenCalled();
+  });
 });
