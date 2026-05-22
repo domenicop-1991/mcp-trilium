@@ -98,6 +98,10 @@ export class TriliumClient {
     return this.makeRequest('PUT', endpoint, data);
   }
 
+  async patch(endpoint, data) {
+    return this.makeRequest('PATCH', endpoint, data);
+  }
+
   async putRaw(endpoint, content) {
     try {
       const config = {

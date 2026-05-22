@@ -22,7 +22,7 @@ export async function updateAttribute(triliumClient, args) {
     }
 
     logger.debug(`Updating attribute ${attributeId} with ${JSON.stringify(body)}`);
-    const updated = await triliumClient.put(`attributes/${attributeId}`, body);
+    const updated = await triliumClient.patch(`attributes/${attributeId}`, body);
 
     const data = {
       operation: 'update_attribute',

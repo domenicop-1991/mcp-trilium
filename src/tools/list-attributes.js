@@ -9,11 +9,11 @@ export async function listAttributes(triliumClient, args) {
 
     logger.debug(`Listing attributes for note: ${noteId}${type ? ` (type=${type})` : ''}`);
 
-    const all = await triliumClient.get(`notes/${noteId}/attributes`);
-    if (!Array.isArray(all)) {
-      throw new TriliumAPIError(`Unexpected response format from attributes endpoint (expected array, got ${typeof all})`, 500, { response: all });
+    const note = await triliumClient.get(`notes/${noteId}`);
+    if (!note || !Array.isArray(note.attributes)) {
+      throw new TriliumAPIError(`Unexpected response format from note endpoint (missing attributes field)`, 500, { response: note });
     }
-    const attributes = all;
+    const attributes = note.attributes;
     const filtered = type ? attributes.filter(a => a.type === type) : attributes;
 
     const data = {
