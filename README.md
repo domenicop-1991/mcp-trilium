@@ -20,6 +20,7 @@ This MCP server enables AI assistants like Claude to interact with your TriliumN
 - **list_children** - List direct children of a note in the tree
 - **move_note** - Move a note under a new parent (supports cloned notes via branchId or oldParentNoteId)
 - **delete_note** - Delete a note (requires confirmCascade for non-leaf notes)
+- **update_note_title** - Rename a note (change its title without touching content)
 
 ### 📚 Resources
 - **trilium://recent-notes** - Access to 10 most recently modified notes
@@ -281,6 +282,12 @@ The following features may be added in future versions:
 - **Analytics and insights** - Note usage statistics and content analysis
 
 ## Changelog
+
+### v0.2.4
+- Add update_note_title tool for renaming notes via PATCH notes/{id}
+
+### v0.2.3
+- (see git log)
 
 ### v0.2.1
 - Fix: src/index.js reads version from package.json (was hardcoded 0.1.0)

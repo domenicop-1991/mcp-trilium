@@ -1,6 +1,6 @@
 {
   "name": "mcp-trilium",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "MCP server for TriliumNext note-taking application",
   "type": "module",
   "main": "src/index.js",

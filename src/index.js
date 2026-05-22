@@ -28,6 +28,7 @@ import { deleteAttribute } from './tools/delete-attribute.js';
 import { listChildren } from './tools/list-children.js';
 import { moveNote } from './tools/move-note.js';
 import { deleteNote } from './tools/delete-note.js';
+import { updateNoteTitle } from './tools/update-note-title.js';
 import { getRecentNotesResource } from './resources/recent-notes.js';
 
 class TriliumMCPServer {
@@ -231,6 +232,18 @@ class TriliumMCPServer {
               required: ['noteId']
             }
           },
+          {
+            name: 'update_note_title',
+            description: 'Rename a note (change its title). The note ID and type stay the same.',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                noteId: { type: 'string', description: 'The ID of the note to rename' },
+                title: { type: 'string', description: 'New title (max 200 chars, non-empty)' }
+              },
+              required: ['noteId', 'title']
+            }
+          },
         ],
       };
     });
@@ -262,6 +275,8 @@ class TriliumMCPServer {
             return await this.moveNote(request.params.arguments);
           case 'delete_note':
             return await this.deleteNote(request.params.arguments);
+          case 'update_note_title':
+            return await this.updateNoteTitle(request.params.arguments);
           default:
             throw new Error(`Unknown tool: ${request.params.name}`);
         }
@@ -353,6 +368,10 @@ class TriliumMCPServer {
 
   async deleteNote(args) {
     return await deleteNote(this.triliumClient, args);
+  }
+
+  async updateNoteTitle(args) {
+    return await updateNoteTitle(this.triliumClient, args);
   }
 
   async getRecentNotesResource() {
