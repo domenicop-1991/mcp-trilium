@@ -13,6 +13,13 @@ This MCP server enables AI assistants like Claude to interact with your TriliumN
 - **search_notes** - Search notes using fulltext or structured queries
 - **get_note** - Retrieve complete note details and content
 - **update_note** - Update existing note content
+- **list_attributes** - List all labels and relations of a note (optional filter by type)
+- **create_attribute** - Create a new label or relation (with target validation for relations)
+- **update_attribute** - Update value or position of an attribute
+- **delete_attribute** - Delete an attribute by its ID
+- **list_children** - List direct children of a note in the tree
+- **move_note** - Move a note under a new parent (supports cloned notes via branchId or oldParentNoteId)
+- **delete_note** - Delete a note (requires confirmCascade for non-leaf notes)
 
 ### 📚 Resources
 - **trilium://recent-notes** - Access to 10 most recently modified notes
@@ -274,6 +281,13 @@ The following features may be added in future versions:
 - **Analytics and insights** - Note usage statistics and content analysis
 
 ## Changelog
+
+### v0.2.0
+- Add 7 new tools: list_attributes, create_attribute, update_attribute, delete_attribute, list_children, move_note, delete_note
+- Align MCP response mime type to 'text' (spec-compliant)
+- Add validators for attributes and branches
+- Fix endpoints to match TriliumNext 0.103 (PATCH attributes/{id}, GET notes/{id} for inline attributes/childNoteIds, POST+DELETE branches for move)
+- Smoke E2E scripts in scripts/ for each phase
 
 ### v0.1.0
 - Initial release with full CRUD operations
