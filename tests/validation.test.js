@@ -1,4 +1,3 @@
-import { jest } from '@jest/globals';
 import { validators, ValidationError } from '../src/utils/validation.js';
 
 describe('validators.attributeId', () => {
@@ -25,6 +24,11 @@ describe('validators.attributeType', () => {
     expect(() => validators.attributeType(null)).toThrow(ValidationError);
     expect(() => validators.attributeType('')).toThrow(ValidationError);
   });
+
+  test('trims whitespace', () => {
+    expect(validators.attributeType('  label  ')).toBe('label');
+    expect(validators.attributeType('  relation  ')).toBe('relation');
+  });
 });
 
 describe('validators.attributeName', () => {
@@ -45,10 +49,13 @@ describe('validators.attributeName', () => {
 describe('validators.branchId', () => {
   test('returns trimmed string for valid id', () => {
     expect(validators.branchId('branch123')).toBe('branch123');
+    expect(validators.branchId('  branch123  ')).toBe('branch123');
   });
 
   test('throws for empty or non-string', () => {
     expect(() => validators.branchId('')).toThrow(ValidationError);
     expect(() => validators.branchId(undefined)).toThrow(ValidationError);
+    expect(() => validators.branchId(null)).toThrow(ValidationError);
+    expect(() => validators.branchId(123)).toThrow(ValidationError);
   });
 });

@@ -77,10 +77,11 @@ export const validators = {
   },
 
   attributeType: (type) => {
-    if (type !== 'label' && type !== 'relation') {
+    const trimmed = typeof type === 'string' ? type.trim() : type;
+    if (trimmed !== 'label' && trimmed !== 'relation') {
       throw new ValidationError("Attribute type must be 'label' or 'relation'");
     }
-    return type;
+    return trimmed;
   },
 
   attributeName: (name) => {
