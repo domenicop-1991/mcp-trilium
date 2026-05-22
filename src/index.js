@@ -20,6 +20,7 @@ import { updateNote } from './tools/update-note.js';
 import { listAttributes } from './tools/list-attributes.js';
 import { createAttribute } from './tools/create-attribute.js';
 import { updateAttribute } from './tools/update-attribute.js';
+import { deleteAttribute } from './tools/delete-attribute.js';
 import { getRecentNotesResource } from './resources/recent-notes.js';
 
 class TriliumMCPServer {
@@ -176,6 +177,15 @@ class TriliumMCPServer {
               required: ['attributeId']
             }
           },
+          {
+            name: 'delete_attribute',
+            description: 'Delete an attribute (label or relation) by its ID',
+            inputSchema: {
+              type: 'object',
+              properties: { attributeId: { type: 'string' } },
+              required: ['attributeId']
+            }
+          },
         ],
       };
     });
@@ -199,6 +209,8 @@ class TriliumMCPServer {
             return await this.createAttribute(request.params.arguments);
           case 'update_attribute':
             return await this.updateAttribute(request.params.arguments);
+          case 'delete_attribute':
+            return await this.deleteAttribute(request.params.arguments);
           default:
             throw new Error(`Unknown tool: ${request.params.name}`);
         }
@@ -274,6 +286,10 @@ class TriliumMCPServer {
 
   async updateAttribute(args) {
     return await updateAttribute(this.triliumClient, args);
+  }
+
+  async deleteAttribute(args) {
+    return await deleteAttribute(this.triliumClient, args);
   }
 
   async getRecentNotesResource() {
