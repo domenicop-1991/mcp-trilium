@@ -23,7 +23,7 @@ class TriliumMCPServer {
   constructor() {
     this.server = new Server(
       {
-        name: 'mcp-triliumnext',
+        name: 'mcp-trilium',
         version: '0.1.0',
       },
       {
