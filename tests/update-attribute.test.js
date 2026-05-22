@@ -10,28 +10,28 @@ jest.mock('../src/utils/logger.js', () => ({
 describe('updateAttribute', () => {
   let mockClient;
   beforeEach(() => {
-    mockClient = { put: jest.fn() };
+    mockClient = { patch: jest.fn() };
     jest.clearAllMocks();
   });
 
   test('updates value only', async () => {
-    mockClient.put.mockResolvedValueOnce({ attributeId: 'a1', value: 'newval', position: 10 });
+    mockClient.patch.mockResolvedValueOnce({ attributeId: 'a1', value: 'newval', position: 10 });
     const result = await updateAttribute(mockClient, { attributeId: 'a1', value: 'newval' });
-    expect(mockClient.put).toHaveBeenCalledWith('attributes/a1', { value: 'newval' });
+    expect(mockClient.patch).toHaveBeenCalledWith('attributes/a1', { value: 'newval' });
     expect(result.isError).toBeUndefined();
   });
 
   test('updates position only', async () => {
-    mockClient.put.mockResolvedValueOnce({ attributeId: 'a1', value: 'x', position: 99 });
+    mockClient.patch.mockResolvedValueOnce({ attributeId: 'a1', value: 'x', position: 99 });
     const result = await updateAttribute(mockClient, { attributeId: 'a1', position: 99 });
-    expect(mockClient.put).toHaveBeenCalledWith('attributes/a1', { position: 99 });
+    expect(mockClient.patch).toHaveBeenCalledWith('attributes/a1', { position: 99 });
     expect(result.isError).toBeUndefined();
   });
 
   test('updates both value and position', async () => {
-    mockClient.put.mockResolvedValueOnce({});
+    mockClient.patch.mockResolvedValueOnce({});
     const result = await updateAttribute(mockClient, { attributeId: 'a1', value: 'v', position: 5 });
-    expect(mockClient.put).toHaveBeenCalledWith('attributes/a1', { value: 'v', position: 5 });
+    expect(mockClient.patch).toHaveBeenCalledWith('attributes/a1', { value: 'v', position: 5 });
     expect(result.isError).toBeUndefined();
   });
 
@@ -49,18 +49,18 @@ describe('updateAttribute', () => {
   test('rejects non-numeric position', async () => {
     const result = await updateAttribute(mockClient, { attributeId: 'a1', position: 'high' });
     expect(result.isError).toBe(true);
-    expect(mockClient.put).not.toHaveBeenCalled();
+    expect(mockClient.patch).not.toHaveBeenCalled();
   });
 
   test('handles 404', async () => {
-    mockClient.put.mockRejectedValueOnce(new TriliumAPIError('Resource not found', 404, {}));
+    mockClient.patch.mockRejectedValueOnce(new TriliumAPIError('Resource not found', 404, {}));
     const result = await updateAttribute(mockClient, { attributeId: 'ghost', value: 'x' });
     expect(result.isError).toBe(true);
     expect(result.content[0].text).toContain('Attribute not found');
   });
 
   test('handles generic TriliumAPIError', async () => {
-    mockClient.put.mockRejectedValueOnce(new TriliumAPIError('Server error', 500, {}));
+    mockClient.patch.mockRejectedValueOnce(new TriliumAPIError('Server error', 500, {}));
     const result = await updateAttribute(mockClient, { attributeId: 'a1', value: 'x' });
     expect(result.isError).toBe(true);
     expect(result.content[0].text).toContain('TriliumNext API error');

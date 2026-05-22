@@ -22,16 +22,16 @@ describe('listAttributes', () => {
   });
 
   test('returns all attributes for a note', async () => {
-    mockClient.get.mockResolvedValueOnce(mockAttributes);
+    mockClient.get.mockResolvedValueOnce({ noteId: 'n1', attributes: mockAttributes });
     const result = await listAttributes(mockClient, { noteId: 'n1' });
-    expect(mockClient.get).toHaveBeenCalledWith('notes/n1/attributes');
+    expect(mockClient.get).toHaveBeenCalledWith('notes/n1');
     expect(result.content[0].text).toContain('3 attribute');
     const data = JSON.parse(result.content[1].text);
     expect(data.result.attributes).toHaveLength(3);
   });
 
   test('filters by type when provided', async () => {
-    mockClient.get.mockResolvedValueOnce(mockAttributes);
+    mockClient.get.mockResolvedValueOnce({ noteId: 'n1', attributes: mockAttributes });
     const result = await listAttributes(mockClient, { noteId: 'n1', type: 'relation' });
     const data = JSON.parse(result.content[1].text);
     expect(data.result.attributes).toHaveLength(1);
