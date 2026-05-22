@@ -19,6 +19,7 @@ import { getNote } from './tools/get-note.js';
 import { updateNote } from './tools/update-note.js';
 import { listAttributes } from './tools/list-attributes.js';
 import { createAttribute } from './tools/create-attribute.js';
+import { updateAttribute } from './tools/update-attribute.js';
 import { getRecentNotesResource } from './resources/recent-notes.js';
 
 class TriliumMCPServer {
@@ -162,6 +163,19 @@ class TriliumMCPServer {
               required: ['noteId', 'type', 'name']
             }
           },
+          {
+            name: 'update_attribute',
+            description: 'Update value or position of an existing attribute (type and name are immutable)',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                attributeId: { type: 'string' },
+                value: { type: 'string', description: 'New value (string for labels, target noteId for relations)' },
+                position: { type: 'number' }
+              },
+              required: ['attributeId']
+            }
+          },
         ],
       };
     });
@@ -183,6 +197,8 @@ class TriliumMCPServer {
             return await this.listAttributes(request.params.arguments);
           case 'create_attribute':
             return await this.createAttribute(request.params.arguments);
+          case 'update_attribute':
+            return await this.updateAttribute(request.params.arguments);
           default:
             throw new Error(`Unknown tool: ${request.params.name}`);
         }
@@ -254,6 +270,10 @@ class TriliumMCPServer {
 
   async createAttribute(args) {
     return await createAttribute(this.triliumClient, args);
+  }
+
+  async updateAttribute(args) {
+    return await updateAttribute(this.triliumClient, args);
   }
 
   async getRecentNotesResource() {
