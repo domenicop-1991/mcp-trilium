@@ -59,7 +59,7 @@ export async function updateNote(triliumClient, args) {
           text: `Note updated: "${updatedNote.title || 'Untitled'}" (ID: ${noteId})`
         },
         {
-          type: 'application/json',
+          type: 'text',
           text: JSON.stringify(updateData, null, 2)
         }
       ],
@@ -91,7 +91,7 @@ export async function updateNote(triliumClient, args) {
             text: `Validation error: ${error.message}`
           },
           {
-            type: 'application/json',
+            type: 'text',
             text: JSON.stringify(errorData, null, 2)
           }
         ],
@@ -108,7 +108,7 @@ export async function updateNote(triliumClient, args) {
               text: `Note not found: ${args.noteId}`
             },
             {
-              type: 'application/json',
+              type: 'text',
               text: JSON.stringify(errorData, null, 2)
             }
           ],
@@ -122,7 +122,7 @@ export async function updateNote(triliumClient, args) {
               text: `Access denied: Cannot update note ${args.noteId}`
             },
             {
-              type: 'application/json',
+              type: 'text',
               text: JSON.stringify(errorData, null, 2)
             }
           ],
@@ -137,7 +137,7 @@ export async function updateNote(triliumClient, args) {
             text: `TriliumNext API error: ${error.message}`
           },
           {
-            type: 'application/json',
+            type: 'text',
             text: JSON.stringify(errorData, null, 2)
           }
         ],
@@ -153,7 +153,7 @@ export async function updateNote(triliumClient, args) {
           text: `Failed to update note: ${error.message}`
         },
         {
-          type: 'application/json',
+          type: 'text',
           text: JSON.stringify(errorData, null, 2)
         }
       ],

@@ -59,7 +59,7 @@ describe('getNote', () => {
       expect(result.content[0].type).toBe('text');
       expect(result.content[0].text).toBe('Note: "Test Note" (text, 24 chars)');
       
-      expect(result.content[1].type).toBe('application/json');
+      expect(result.content[1].type).toBe('text');
       const parsedData = JSON.parse(result.content[1].text);
       expect(parsedData.operation).toBe('get_note');
       expect(parsedData.note.noteId).toBe('note123');
@@ -334,7 +334,7 @@ describe('getNote', () => {
 
       expect(result.isError).toBe(true);
       expect(result.content).toHaveLength(2);
-      expect(result.content[1].type).toBe('application/json');
+      expect(result.content[1].type).toBe('text');
       
       const parsedData = JSON.parse(result.content[1].text);
       expect(parsedData.operation).toBe('get_note');
@@ -354,7 +354,7 @@ describe('getNote', () => {
 
       expect(result.isError).toBe(true);
       expect(result.content).toHaveLength(2);
-      expect(result.content[1].type).toBe('application/json');
+      expect(result.content[1].type).toBe('text');
       
       const parsedData = JSON.parse(result.content[1].text);
       expect(parsedData.operation).toBe('get_note');

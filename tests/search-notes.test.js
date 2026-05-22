@@ -56,7 +56,7 @@ describe('searchNotes', () => {
       expect(result.content).toHaveLength(2);
       expect(result.content[0].type).toBe('text');
       expect(result.content[0].text).toBe('Found 2 notes for "javascript programming"');
-      expect(result.content[1].type).toBe('application/json');
+      expect(result.content[1].type).toBe('text');
       
       const searchData = JSON.parse(result.content[1].text);
       expect(searchData.query).toBe('javascript programming');

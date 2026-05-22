@@ -65,7 +65,7 @@ export async function getNote(triliumClient, args) {
           text: summary
         },
         {
-          type: 'application/json',
+          type: 'text',
           text: JSON.stringify(noteData, null, 2)
         }
       ],
@@ -96,7 +96,7 @@ export async function getNote(triliumClient, args) {
             text: `Validation error: ${error.message}`
           },
           {
-            type: 'application/json',
+            type: 'text',
             text: JSON.stringify(errorData, null, 2)
           }
         ],
@@ -113,7 +113,7 @@ export async function getNote(triliumClient, args) {
               text: `Note not found: ${args.noteId}`
             },
             {
-              type: 'application/json',
+              type: 'text',
               text: JSON.stringify(errorData, null, 2)
             }
           ],
@@ -128,7 +128,7 @@ export async function getNote(triliumClient, args) {
             text: `TriliumNext API error: ${error.message}`
           },
           {
-            type: 'application/json',
+            type: 'text',
             text: JSON.stringify(errorData, null, 2)
           }
         ],
@@ -144,7 +144,7 @@ export async function getNote(triliumClient, args) {
           text: `Failed to get note: ${error.message}`
         },
         {
-          type: 'application/json',
+          type: 'text',
           text: JSON.stringify(errorData, null, 2)
         }
       ],

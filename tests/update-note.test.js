@@ -77,7 +77,7 @@ describe('updateNote', () => {
       expect(result.content[0].text).toContain('Note updated: "JavaScript Fundamentals"');
       expect(result.content[0].text).toContain(`(ID: ${noteId})`);
       
-      expect(result.content[1].type).toBe('application/json');
+      expect(result.content[1].type).toBe('text');
       const jsonData = JSON.parse(result.content[1].text);
       expect(jsonData.operation).toBe('update_note');
       expect(jsonData.request.noteId).toBe(noteId);

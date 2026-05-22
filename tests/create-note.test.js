@@ -54,7 +54,7 @@ describe('createNote', () => {
       expect(result.content).toHaveLength(2);
       expect(result.content[0].type).toBe('text');
       expect(result.content[0].text).toBe('Note created: "My Test Note" (ID: abc123)');
-      expect(result.content[1].type).toBe('application/json');
+      expect(result.content[1].type).toBe('text');
       
       const jsonData = JSON.parse(result.content[1].text);
       expect(jsonData.operation).toBe('create_note');

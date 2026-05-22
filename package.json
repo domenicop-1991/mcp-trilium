@@ -1,11 +1,11 @@
 {
-  "name": "mcp-triliumnext",
+  "name": "mcp-trilium",
   "version": "0.1.0",
   "description": "MCP server for TriliumNext note-taking application",
   "type": "module",
   "main": "src/index.js",
   "bin": {
-    "mcp-triliumnext": "src/index.js"
+    "mcp-trilium": "src/index.js"
   },
   "scripts": {
     "start": "node src/index.js",
@@ -42,10 +42,10 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/your-username/mcp-triliumnext.git"
+    "url": "git+https://github.com/your-username/mcp-trilium.git"
   },
   "bugs": {
-    "url": "https://github.com/your-username/mcp-triliumnext/issues"
+    "url": "https://github.com/your-username/mcp-trilium/issues"
   },
-  "homepage": "https://github.com/your-username/mcp-triliumnext#readme"
+  "homepage": "https://github.com/your-username/mcp-trilium#readme"
 }

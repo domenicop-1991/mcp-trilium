@@ -55,7 +55,7 @@ export async function createNote(triliumClient, args) {
           text: `Note created: "${title}" (ID: ${noteId})`
         },
         {
-          type: 'application/json',
+          type: 'text',
           text: JSON.stringify(creationData, null, 2)
         }
       ],
@@ -89,7 +89,7 @@ export async function createNote(triliumClient, args) {
             text: `Validation error: ${error.message}`
           },
           {
-            type: 'application/json',
+            type: 'text',
             text: JSON.stringify(errorData, null, 2)
           }
         ],
@@ -105,7 +105,7 @@ export async function createNote(triliumClient, args) {
             text: `TriliumNext API error: ${error.message}`
           },
           {
-            type: 'application/json',
+            type: 'text',
             text: JSON.stringify(errorData, null, 2)
           }
         ],
@@ -121,7 +121,7 @@ export async function createNote(triliumClient, args) {
           text: `Note creation failed: ${error.message}`
         },
         {
-          type: 'application/json',
+          type: 'text',
           text: JSON.stringify(errorData, null, 2)
         }
       ],

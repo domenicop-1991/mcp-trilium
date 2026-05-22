@@ -56,7 +56,7 @@ export async function searchNotes(triliumClient, args) {
             text: `No notes found for "${query}"`
           },
           {
-            type: 'application/json',
+            type: 'text',
             text: JSON.stringify(searchData, null, 2)
           }
         ],
@@ -73,7 +73,7 @@ export async function searchNotes(triliumClient, args) {
           text: summary
         },
         {
-          type: 'application/json',
+          type: 'text',
           text: JSON.stringify(searchData, null, 2)
         }
       ],
@@ -102,7 +102,7 @@ export async function searchNotes(triliumClient, args) {
             text: `Validation error: ${error.message}`
           },
           {
-            type: 'application/json',
+            type: 'text',
             text: JSON.stringify(errorData, null, 2)
           }
         ],
@@ -118,7 +118,7 @@ export async function searchNotes(triliumClient, args) {
             text: `TriliumNext API error: ${error.message}`
           },
           {
-            type: 'application/json',
+            type: 'text',
             text: JSON.stringify(errorData, null, 2)
           }
         ],
@@ -134,7 +134,7 @@ export async function searchNotes(triliumClient, args) {
           text: `Search failed: ${error.message}`
         },
         {
-          type: 'application/json',
+          type: 'text',
           text: JSON.stringify(errorData, null, 2)
         }
       ],
