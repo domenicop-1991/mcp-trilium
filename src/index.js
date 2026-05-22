@@ -23,6 +23,7 @@ import { updateAttribute } from './tools/update-attribute.js';
 import { deleteAttribute } from './tools/delete-attribute.js';
 import { listChildren } from './tools/list-children.js';
 import { moveNote } from './tools/move-note.js';
+import { deleteNote } from './tools/delete-note.js';
 import { getRecentNotesResource } from './resources/recent-notes.js';
 
 class TriliumMCPServer {
@@ -214,6 +215,18 @@ class TriliumMCPServer {
               required: ['noteId', 'newParentNoteId']
             }
           },
+          {
+            name: 'delete_note',
+            description: 'Delete a note. If the note has children, confirmCascade must be true.',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                noteId: { type: 'string' },
+                confirmCascade: { type: 'boolean', default: false, description: 'Required true if the note has children' }
+              },
+              required: ['noteId']
+            }
+          },
         ],
       };
     });
@@ -243,6 +256,8 @@ class TriliumMCPServer {
             return await this.listChildren(request.params.arguments);
           case 'move_note':
             return await this.moveNote(request.params.arguments);
+          case 'delete_note':
+            return await this.deleteNote(request.params.arguments);
           default:
             throw new Error(`Unknown tool: ${request.params.name}`);
         }
@@ -330,6 +345,10 @@ class TriliumMCPServer {
 
   async moveNote(args) {
     return await moveNote(this.triliumClient, args);
+  }
+
+  async deleteNote(args) {
+    return await deleteNote(this.triliumClient, args);
   }
 
   async getRecentNotesResource() {
