@@ -21,6 +21,7 @@ import { listAttributes } from './tools/list-attributes.js';
 import { createAttribute } from './tools/create-attribute.js';
 import { updateAttribute } from './tools/update-attribute.js';
 import { deleteAttribute } from './tools/delete-attribute.js';
+import { listChildren } from './tools/list-children.js';
 import { getRecentNotesResource } from './resources/recent-notes.js';
 
 class TriliumMCPServer {
@@ -186,6 +187,18 @@ class TriliumMCPServer {
               required: ['attributeId']
             }
           },
+          {
+            name: 'list_children',
+            description: 'List direct children (depth=1) of a note in the tree',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                noteId: { type: 'string' },
+                limit: { type: 'number', minimum: 1, maximum: 100, default: 50 }
+              },
+              required: ['noteId']
+            }
+          },
         ],
       };
     });
@@ -211,6 +224,8 @@ class TriliumMCPServer {
             return await this.updateAttribute(request.params.arguments);
           case 'delete_attribute':
             return await this.deleteAttribute(request.params.arguments);
+          case 'list_children':
+            return await this.listChildren(request.params.arguments);
           default:
             throw new Error(`Unknown tool: ${request.params.name}`);
         }
@@ -290,6 +305,10 @@ class TriliumMCPServer {
 
   async deleteAttribute(args) {
     return await deleteAttribute(this.triliumClient, args);
+  }
+
+  async listChildren(args) {
+    return await listChildren(this.triliumClient, args);
   }
 
   async getRecentNotesResource() {
