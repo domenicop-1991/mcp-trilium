@@ -79,9 +79,15 @@ class TriliumMCPServer {
                 },
                 type: {
                   type: 'string',
-                  enum: ['text', 'code', 'file', 'image', 'search', 'book', 'relationMap', 'canvas'],
+                  enum: ['file', 'image', 'search', 'noteMap', 'launcher', 'doc', 'contentWidget',
+                    'text', 'relationMap', 'render', 'canvas', 'mermaid', 'book', 'webView',
+                    'code', 'mindMap', 'spreadsheet', 'llmChat'],
                   default: 'text',
-                  description: 'The type of note to create',
+                  description: 'Note type. text=HTML editor (default); code=monospace+syntax (use mime for language); mermaid=diagram; mindMap=mindmap; spreadsheet=Univer Sheets (v0.103+); canvas=Excalidraw; book=container; relationMap=visual nodes graph; render=custom HTML render; file/image=binary; search=saved search; webView=iframe; doc/noteMap/launcher/contentWidget/llmChat=internal Trilium types',
+                },
+                mime: {
+                  type: 'string',
+                  description: 'MIME type. Optional, auto-determined by server based on type if omitted. Esempi: text/markdown per note text in markdown; application/javascript per code JS; text/x-python per code Python.',
                 },
                 parentNoteId: {
                   type: 'string',

@@ -96,7 +96,7 @@ The server implements:
 
 ### Note Content Handling
 - Content is sent as `text/plain` for updates to prevent `[Object]` storage
-- Supports all TriliumNext note types (text, code, file, image, search, book, relationMap, canvas)
+- Supports all 18 TriliumNext note types (text, code, mermaid, mindMap, spreadsheet, canvas, book, relationMap, render, file, image, search, webView, doc, noteMap, launcher, contentWidget, llmChat)
 - Parent note ID defaults to 'root' if not specified
 
 ### Search Query Support

@@ -525,9 +525,78 @@ describe('createNote', () => {
       });
 
       expect(result.content[0].text).toBe('Note created: "Test Note" (ID: minimal123)');
-      
+
       const jsonData = JSON.parse(result.content[1].text);
       expect(jsonData.result.noteId).toBe('minimal123');
+    });
+  });
+
+  describe('mime parameter', () => {
+    test('passes mime to API when provided', async () => {
+      const mockNote = {
+        noteId: 'note999',
+        title: 'MD Note',
+        type: 'text',
+        mime: 'text/markdown'
+      };
+      mockTriliumClient.post.mockResolvedValue({ note: mockNote });
+
+      const result = await createNote(mockTriliumClient, {
+        title: 'MD Note',
+        content: '# Hello',
+        type: 'text',
+        mime: 'text/markdown',
+        parentNoteId: 'root'
+      });
+
+      expect(mockTriliumClient.post).toHaveBeenCalledWith(
+        'create-note',
+        expect.objectContaining({ mime: 'text/markdown' })
+      );
+      expect(result.content[0].text).toContain('Note created');
+    });
+
+    test('omits mime from body when not provided', async () => {
+      const mockNote = { noteId: 'note998', title: 'T', type: 'text' };
+      mockTriliumClient.post.mockResolvedValue({ note: mockNote });
+
+      await createNote(mockTriliumClient, {
+        title: 'T',
+        content: 'x',
+        parentNoteId: 'root'
+      });
+
+      const calledBody = mockTriliumClient.post.mock.calls[0][1];
+      expect(calledBody).not.toHaveProperty('mime');
+    });
+
+    test('accepts mermaid type', async () => {
+      const mockNote = { noteId: 'm1', title: 'Diagram', type: 'mermaid' };
+      mockTriliumClient.post.mockResolvedValue({ note: mockNote });
+
+      const result = await createNote(mockTriliumClient, {
+        title: 'Diagram',
+        content: 'graph TD;A-->B;',
+        type: 'mermaid',
+        parentNoteId: 'root'
+      });
+
+      expect(result.isError).toBeUndefined();
+      expect(mockTriliumClient.post).toHaveBeenCalledWith(
+        'create-note',
+        expect.objectContaining({ type: 'mermaid' })
+      );
+    });
+
+    test('rejects invalid type like markdown', async () => {
+      const result = await createNote(mockTriliumClient, {
+        title: 'X',
+        content: 'x',
+        type: 'markdown',
+        parentNoteId: 'root'
+      });
+      expect(result.isError).toBe(true);
+      expect(result.content[0].text).toContain('Validation error');
     });
   });
 });

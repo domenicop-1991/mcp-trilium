@@ -44,7 +44,11 @@ export const validators = {
   },
 
   noteType: (type) => {
-    const validTypes = ['text', 'code', 'file', 'image', 'search', 'book', 'relationMap', 'canvas'];
+    const validTypes = [
+      'file', 'image', 'search', 'noteMap', 'launcher', 'doc', 'contentWidget',
+      'text', 'relationMap', 'render', 'canvas', 'mermaid', 'book', 'webView',
+      'code', 'mindMap', 'spreadsheet', 'llmChat'
+    ];
     if (type && !validTypes.includes(type)) {
       throw new ValidationError(`Note type must be one of: ${validTypes.join(', ')}`);
     }
@@ -121,5 +125,22 @@ export const validators = {
       throw new ValidationError('Limit cannot exceed 100');
     }
     return num;
-  }
+  },
+
+  mime: (mime) => {
+    if (mime === undefined || mime === null) {
+      return undefined;
+    }
+    if (typeof mime !== 'string') {
+      throw new ValidationError('Mime must be a string');
+    }
+    const trimmed = mime.trim();
+    if (trimmed.length === 0) {
+      throw new ValidationError('Mime cannot be empty (omit instead)');
+    }
+    if (trimmed.length > 100) {
+      throw new ValidationError('Mime cannot exceed 100 characters');
+    }
+    return trimmed;
+  },
 };

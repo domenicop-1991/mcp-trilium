@@ -59,3 +59,47 @@ describe('validators.branchId', () => {
     expect(() => validators.branchId(123)).toThrow(ValidationError);
   });
 });
+
+describe('validators.noteType (extended)', () => {
+  test('accepts all 18 valid types', () => {
+    const types = ['file', 'image', 'search', 'noteMap', 'launcher', 'doc', 'contentWidget',
+      'text', 'relationMap', 'render', 'canvas', 'mermaid', 'book', 'webView',
+      'code', 'mindMap', 'spreadsheet', 'llmChat'];
+    for (const t of types) {
+      expect(validators.noteType(t)).toBe(t);
+    }
+  });
+
+  test('rejects unknown type', () => {
+    expect(() => validators.noteType('markdown')).toThrow(ValidationError);
+    expect(() => validators.noteType('html')).toThrow(ValidationError);
+  });
+
+  test('defaults to text when undefined', () => {
+    expect(validators.noteType(undefined)).toBe('text');
+  });
+});
+
+describe('validators.mime', () => {
+  test('returns undefined when not provided', () => {
+    expect(validators.mime(undefined)).toBe(undefined);
+    expect(validators.mime(null)).toBe(undefined);
+  });
+
+  test('trims and returns valid mime', () => {
+    expect(validators.mime('text/markdown')).toBe('text/markdown');
+    expect(validators.mime('  application/json  ')).toBe('application/json');
+  });
+
+  test('throws on non-string', () => {
+    expect(() => validators.mime(123)).toThrow(ValidationError);
+  });
+
+  test('throws on empty string', () => {
+    expect(() => validators.mime('   ')).toThrow(ValidationError);
+  });
+
+  test('throws on too long', () => {
+    expect(() => validators.mime('a'.repeat(101))).toThrow(ValidationError);
+  });
+});

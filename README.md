@@ -210,15 +210,21 @@ See [docs/trilium-etapi-specification.md](docs/trilium-etapi-specification.md) f
 - `LOG_LEVEL` - Logging level: `error`, `warn`, `info`, `debug` (default: `info`)
 
 ### Note Types
-Supported note types:
+All 18 TriliumNext 0.103+ types are supported:
 - `text` - Rich text notes (default)
-- `code` - Code snippets with syntax highlighting
+- `code` - Code snippets with syntax highlighting (use `mime` for language, e.g. `application/javascript`)
+- `mermaid` - Mermaid diagrams
+- `mindMap` - Mind maps
+- `spreadsheet` - Univer Sheets (v0.103+)
+- `canvas` - Excalidraw freeform canvas
+- `book` - Book/chapter container
+- `relationMap` - Visual relation nodes graph
+- `render` - Custom HTML render
 - `file` - File attachments
 - `image` - Image notes
 - `search` - Saved searches
-- `book` - Book/chapter organization
-- `relationMap` - Visual relation maps
-- `canvas` - Freeform canvas notes
+- `webView` - Iframe/web view
+- `doc`, `noteMap`, `launcher`, `contentWidget`, `llmChat` - Internal Trilium types
 
 ## Troubleshooting
 
@@ -267,7 +273,7 @@ MIT License - see [LICENSE](LICENSE) file for details.
 The following features may be added in future versions:
 
 ### 🚀 Planned Features
-- **Enhanced note types support** - Full support for all TriliumNext note types (relationMap, canvas, etc.)
+- **Enhanced note types support** - Full support for all 18 TriliumNext note types (done in v0.2.5)
 - **Advanced search features** - Attribute-based queries, date range filters, and complex search operators
 - **Performance optimizations** - Caching, batch operations, and streaming for large note collections
 - **Note relationship management** - Tools for managing note relationships and hierarchies
@@ -282,6 +288,10 @@ The following features may be added in future versions:
 - **Analytics and insights** - Note usage statistics and content analysis
 
 ## Changelog
+
+### v0.2.5
+- Extend supported note types from 8 to 18 (full TriliumNext 0.103+ list): added mermaid, mindMap, spreadsheet, render, webView, doc, noteMap, launcher, contentWidget, llmChat
+- Add optional `mime` parameter to create_note (for markdown notes, code language specification, ecc.)
 
 ### v0.2.4
 - Add update_note_title tool for renaming notes via PATCH notes/{id}
