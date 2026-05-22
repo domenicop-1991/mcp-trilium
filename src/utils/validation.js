@@ -65,6 +65,49 @@ export const validators = {
     return trimmed;
   },
 
+  attributeId: (id) => {
+    if (!id || typeof id !== 'string') {
+      throw new ValidationError('Attribute ID must be a non-empty string');
+    }
+    const trimmed = id.trim();
+    if (trimmed.length === 0) {
+      throw new ValidationError('Attribute ID cannot be empty');
+    }
+    return trimmed;
+  },
+
+  attributeType: (type) => {
+    if (type !== 'label' && type !== 'relation') {
+      throw new ValidationError("Attribute type must be 'label' or 'relation'");
+    }
+    return type;
+  },
+
+  attributeName: (name) => {
+    if (!name || typeof name !== 'string') {
+      throw new ValidationError('Attribute name must be a non-empty string');
+    }
+    const trimmed = name.trim();
+    if (trimmed.length === 0) {
+      throw new ValidationError('Attribute name cannot be empty');
+    }
+    if (!/^[a-zA-Z0-9_]+$/.test(trimmed)) {
+      throw new ValidationError('Attribute name can only contain letters, digits, and underscores');
+    }
+    return trimmed;
+  },
+
+  branchId: (id) => {
+    if (!id || typeof id !== 'string') {
+      throw new ValidationError('Branch ID must be a non-empty string');
+    }
+    const trimmed = id.trim();
+    if (trimmed.length === 0) {
+      throw new ValidationError('Branch ID cannot be empty');
+    }
+    return trimmed;
+  },
+
   limit: (limit) => {
     if (limit === undefined || limit === null) {
       return 10; // default
