@@ -61,4 +61,11 @@ describe('listAttributes', () => {
     const result = await listAttributes(mockClient, { noteId: 'n1' });
     expect(result.isError).toBe(true);
   });
+
+  test('throws when API returns non-array (object)', async () => {
+    mockClient.get.mockResolvedValueOnce({ unexpected: 'shape' });
+    const result = await listAttributes(mockClient, { noteId: 'n1' });
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain('Unexpected response format');
+  });
 });

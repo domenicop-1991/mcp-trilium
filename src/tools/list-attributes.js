@@ -10,7 +10,10 @@ export async function listAttributes(triliumClient, args) {
     logger.debug(`Listing attributes for note: ${noteId}${type ? ` (type=${type})` : ''}`);
 
     const all = await triliumClient.get(`notes/${noteId}/attributes`);
-    const attributes = Array.isArray(all) ? all : [];
+    if (!Array.isArray(all)) {
+      throw new TriliumAPIError(`Unexpected response format from attributes endpoint (expected array, got ${typeof all})`, 500, { response: all });
+    }
+    const attributes = all;
     const filtered = type ? attributes.filter(a => a.type === type) : attributes;
 
     const data = {
@@ -43,6 +46,15 @@ export async function listAttributes(triliumClient, args) {
     }
     if (error instanceof TriliumAPIError && error.status === 404) {
       return { content: [{ type: 'text', text: `Note not found: ${args.noteId}` }, { type: 'text', text: JSON.stringify(errorData, null, 2) }], isError: true };
+    }
+    if (error instanceof TriliumAPIError) {
+      return {
+        content: [
+          { type: 'text', text: `TriliumNext API error: ${error.message}` },
+          { type: 'text', text: JSON.stringify(errorData, null, 2) }
+        ],
+        isError: true
+      };
     }
     return { content: [{ type: 'text', text: `Failed to list attributes: ${error.message}` }, { type: 'text', text: JSON.stringify(errorData, null, 2) }], isError: true };
   }
