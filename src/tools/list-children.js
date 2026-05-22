@@ -38,7 +38,7 @@ export async function listChildren(triliumClient, args) {
     };
     return {
       content: [
-        { type: 'text', text: `Found ${projected.length} direct child note${projected.length === 1 ? '' : 'ren'} under ${noteId}` },
+        { type: 'text', text: `Found ${projected.length} direct ${projected.length === 1 ? 'child' : 'children'} under ${noteId}` },
         { type: 'text', text: JSON.stringify(data, null, 2) }
       ]
     };
