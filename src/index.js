@@ -22,6 +22,7 @@ import { createAttribute } from './tools/create-attribute.js';
 import { updateAttribute } from './tools/update-attribute.js';
 import { deleteAttribute } from './tools/delete-attribute.js';
 import { listChildren } from './tools/list-children.js';
+import { moveNote } from './tools/move-note.js';
 import { getRecentNotesResource } from './resources/recent-notes.js';
 
 class TriliumMCPServer {
@@ -199,6 +200,20 @@ class TriliumMCPServer {
               required: ['noteId']
             }
           },
+          {
+            name: 'move_note',
+            description: 'Move a note to a new parent. For cloned notes (multi-branch), pass branchId or oldParentNoteId to disambiguate.',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                noteId: { type: 'string' },
+                newParentNoteId: { type: 'string' },
+                branchId: { type: 'string', description: 'Explicit branch to move (required if note has multiple branches and oldParentNoteId is not provided)' },
+                oldParentNoteId: { type: 'string', description: 'Current parent of the branch to move (alternative to branchId)' }
+              },
+              required: ['noteId', 'newParentNoteId']
+            }
+          },
         ],
       };
     });
@@ -226,6 +241,8 @@ class TriliumMCPServer {
             return await this.deleteAttribute(request.params.arguments);
           case 'list_children':
             return await this.listChildren(request.params.arguments);
+          case 'move_note':
+            return await this.moveNote(request.params.arguments);
           default:
             throw new Error(`Unknown tool: ${request.params.name}`);
         }
@@ -309,6 +326,10 @@ class TriliumMCPServer {
 
   async listChildren(args) {
     return await listChildren(this.triliumClient, args);
+  }
+
+  async moveNote(args) {
+    return await moveNote(this.triliumClient, args);
   }
 
   async getRecentNotesResource() {
