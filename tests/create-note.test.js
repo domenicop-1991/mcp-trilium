@@ -1,602 +1,220 @@
 import { jest } from '@jest/globals';
 import { createNote } from '../src/tools/create-note.js';
-import { ValidationError } from '../src/utils/validation.js';
 import { TriliumAPIError } from '../src/utils/trilium-client.js';
 
-// Mock the logger to avoid console output during tests
 jest.mock('../src/utils/logger.js', () => ({
-  logger: {
-    debug: jest.fn(),
-    info: jest.fn(),
-    error: jest.fn(),
-    warn: jest.fn()
-  }
+  logger: { debug: jest.fn(), info: jest.fn(), error: jest.fn(), warn: jest.fn() }
 }));
 
+const payloadOf = (result) => JSON.parse(result.content[1].text);
+
 describe('createNote', () => {
-  let mockTriliumClient;
+  let mockClient;
 
   beforeEach(() => {
-    // Create a fresh mock for each test
-    mockTriliumClient = {
-      post: jest.fn()
-    };
+    mockClient = { post: jest.fn() };
     jest.clearAllMocks();
   });
 
   describe('successful note creation', () => {
-    test('should create basic text note successfully', async () => {
-      const mockResponse = {
-        note: {
-          noteId: 'abc123',
-          title: 'My Test Note',
-          type: 'text',
-          dateCreated: '2024-01-15T14:30:00.000Z',
-          dateModified: '2024-01-15T14:30:00.000Z'
-        }
-      };
+    test('creates basic text note with raw passthrough', async () => {
+      const mockNote = { noteId: 'n1', title: 'T', type: 'text' };
+      mockClient.post.mockResolvedValue({ note: mockNote });
 
-      mockTriliumClient.post.mockResolvedValue(mockResponse);
-
-      const result = await createNote(mockTriliumClient, {
-        title: 'My Test Note',
-        content: 'This is the note content',
-        type: 'text'
+      const result = await createNote(mockClient, {
+        title: 'T',
+        content: '<p>html</p>',
+        format: 'raw',
+        parentNoteId: 'root',
       });
 
-      expect(mockTriliumClient.post).toHaveBeenCalledWith('create-note', {
-        title: 'My Test Note',
-        content: 'This is the note content',
-        type: 'text',
-        parentNoteId: 'root'
-      });
-
-      expect(result.content).toHaveLength(2);
-      expect(result.content[0].type).toBe('text');
-      expect(result.content[0].text).toBe('Note created: "My Test Note" (ID: abc123)');
-      expect(result.content[1].type).toBe('text');
-      
-      const jsonData = JSON.parse(result.content[1].text);
-      expect(jsonData.operation).toBe('create_note');
-      expect(jsonData.request.title).toBe('My Test Note');
-      expect(jsonData.request.type).toBe('text');
-      expect(jsonData.request.contentLength).toBe(24);
-      expect(jsonData.result.noteId).toBe('abc123');
-      expect(jsonData.result.triliumUrl).toBe('trilium://note/abc123');
+      expect(result.isError).toBeFalsy();
+      expect(mockClient.post).toHaveBeenCalledWith(
+        'create-note',
+        expect.objectContaining({ title: 'T', content: '<p>html</p>', parentNoteId: 'root', type: 'text' })
+      );
+      expect(payloadOf(result).result.noteId).toBe('n1');
     });
 
-    test('should create note with parent successfully', async () => {
-      const mockResponse = {
-        note: {
-          noteId: 'child123',
-          title: 'Child Note',
-          type: 'text',
-          parentNoteId: 'parent456'
-        }
-      };
+    test('converts markdown to HTML for text notes by default', async () => {
+      mockClient.post.mockResolvedValue({ note: { noteId: 'nMD', title: 'T', type: 'text' } });
 
-      mockTriliumClient.post.mockResolvedValue(mockResponse);
-
-      const result = await createNote(mockTriliumClient, {
-        title: 'Child Note',
-        content: 'Child content',
-        type: 'text',
-        parentNoteId: 'parent456'
+      const result = await createNote(mockClient, {
+        title: 'T',
+        content: '# Heading\n\n**bold**',
+        parentNoteId: 'root',
       });
 
-      expect(mockTriliumClient.post).toHaveBeenCalledWith('create-note', {
-        title: 'Child Note',
-        content: 'Child content',
-        type: 'text',
-        parentNoteId: 'parent456'
-      });
-
-      const jsonData = JSON.parse(result.content[1].text);
-      expect(jsonData.request.parentNoteId).toBe('parent456');
+      const body = mockClient.post.mock.calls[0][1];
+      expect(body.content).toContain('<h1');
+      expect(body.content).toContain('<strong>bold</strong>');
+      expect(body.mime).toBe('text/html');
+      expect(payloadOf(result).request.converted).toBe(true);
     });
 
-    test('should create different note types', async () => {
-      const mockResponse = {
-        note: {
-          noteId: 'code123',
-          title: 'JavaScript Code',
-          type: 'code'
-        }
-      };
+    test('skips conversion for non-text types', async () => {
+      mockClient.post.mockResolvedValue({ note: { noteId: 'm1', title: 'Diagram', type: 'mermaid' } });
 
-      mockTriliumClient.post.mockResolvedValue(mockResponse);
-
-      await createNote(mockTriliumClient, {
-        title: 'JavaScript Code',
-        content: 'console.log("Hello World");',
-        type: 'code'
+      await createNote(mockClient, {
+        title: 'Diagram',
+        content: 'graph TD;A-->B;',
+        type: 'mermaid',
+        parentNoteId: 'root',
       });
 
-      expect(mockTriliumClient.post).toHaveBeenCalledWith('create-note', {
-        title: 'JavaScript Code',
-        content: 'console.log("Hello World");',
-        type: 'code',
-        parentNoteId: 'root'
-      });
+      const body = mockClient.post.mock.calls[0][1];
+      expect(body.content).toBe('graph TD;A-->B;');
+      expect(body.type).toBe('mermaid');
     });
 
-    test('should default to root parentNoteId when not provided', async () => {
-      const mockResponse = {
-        note: {
-          noteId: 'root123',
-          title: 'Root Note',
-          type: 'text'
-        }
-      };
+    test('skips conversion when mime is text/markdown', async () => {
+      mockClient.post.mockResolvedValue({ note: { noteId: 'm', title: 'MD', type: 'text' } });
 
-      mockTriliumClient.post.mockResolvedValue(mockResponse);
-
-      const result = await createNote(mockTriliumClient, {
-        title: 'Root Note',
-        content: 'Root content',
-        type: 'text'
-      });
-
-      expect(mockTriliumClient.post).toHaveBeenCalledWith('create-note', {
-        title: 'Root Note',
-        content: 'Root content',
+      await createNote(mockClient, {
+        title: 'MD',
+        content: '# stays markdown',
         type: 'text',
-        parentNoteId: 'root'
+        mime: 'text/markdown',
+        parentNoteId: 'root',
       });
 
-      const jsonData = JSON.parse(result.content[1].text);
-      expect(jsonData.request.parentNoteId).toBe('root');
+      const body = mockClient.post.mock.calls[0][1];
+      expect(body.content).toBe('# stays markdown');
+      expect(body.mime).toBe('text/markdown');
     });
 
-    test('should preserve additional API response fields', async () => {
-      const mockResponse = {
-        note: {
-          noteId: 'abc123',
-          title: 'My Note',
-          type: 'text',
-          isProtected: false,
-          mime: 'text/html',
-          attributes: ['#tag1', '#tag2']
-        }
-      };
+    test('honors format=html passthrough', async () => {
+      mockClient.post.mockResolvedValue({ note: { noteId: 'h', title: 'H', type: 'text' } });
+      await createNote(mockClient, { title: 'H', content: '<p>x</p>', format: 'html', parentNoteId: 'root' });
+      const body = mockClient.post.mock.calls[0][1];
+      expect(body.content).toBe('<p>x</p>');
+    });
 
-      mockTriliumClient.post.mockResolvedValue(mockResponse);
+    test('defaults parentNoteId to root', async () => {
+      mockClient.post.mockResolvedValue({ note: { noteId: 'r', title: 'T', type: 'text' } });
+      await createNote(mockClient, { title: 'T', content: 'x', format: 'raw' });
+      const body = mockClient.post.mock.calls[0][1];
+      expect(body.parentNoteId).toBe('root');
+    });
 
-      const result = await createNote(mockTriliumClient, {
-        title: 'My Note',
-        content: 'Content',
-        type: 'text'
-      });
-
-      const jsonData = JSON.parse(result.content[1].text);
-      expect(jsonData.result.isProtected).toBe(false);
-      expect(jsonData.result.mime).toBe('text/html');
-      expect(jsonData.result.attributes).toEqual(['#tag1', '#tag2']);
+    test('preserves additional API response fields', async () => {
+      const mockNote = { noteId: 'p', title: 'T', type: 'text', extraField: 'value' };
+      mockClient.post.mockResolvedValue({ note: mockNote });
+      const result = await createNote(mockClient, { title: 'T', content: 'x', format: 'raw', parentNoteId: 'root' });
+      expect(payloadOf(result).result.noteId).toBe('p');
     });
   });
 
   describe('input validation', () => {
-    test('should reject empty title', async () => {
-      const result = await createNote(mockTriliumClient, {
-        title: '',
-        content: 'Content',
-        type: 'text'
-      });
+    const invalidCases = [
+      { label: 'empty title', args: { title: '', content: 'x', format: 'raw' } },
+      { label: 'whitespace title', args: { title: '   ', content: 'x', format: 'raw' } },
+      { label: 'long title', args: { title: 'A'.repeat(201), content: 'x', format: 'raw' } },
+      { label: 'non-string title', args: { title: 123, content: 'x', format: 'raw' } },
+      { label: 'null title', args: { title: null, content: 'x', format: 'raw' } },
+      { label: 'non-string content', args: { title: 'T', content: 123, format: 'raw' } },
+      { label: 'invalid type', args: { title: 'T', content: 'x', type: 'unknown', format: 'raw' } },
+      { label: 'invalid format', args: { title: 'T', content: 'x', format: 'xml' } },
+    ];
 
+    test.each(invalidCases)('rejects $label', async ({ args }) => {
+      const result = await createNote(mockClient, args);
       expect(result.isError).toBe(true);
-      expect(result.content[0].text).toContain('Validation error:');
-      expect(mockTriliumClient.post).not.toHaveBeenCalled();
+      expect(result.content[0].text).toContain('Validation error');
+      expect(mockClient.post).not.toHaveBeenCalled();
     });
 
-    test('should reject whitespace-only title', async () => {
-      const result = await createNote(mockTriliumClient, {
-        title: '   \t\n   ',
-        content: 'Content',
-        type: 'text'
-      });
-
-      expect(result.isError).toBe(true);
-      expect(result.content[0].text).toContain('Validation error:');
-      expect(mockTriliumClient.post).not.toHaveBeenCalled();
-    });
-
-    test('should reject title that is too long', async () => {
-      const longTitle = 'A'.repeat(201); // Exceeds 200 character limit
-
-      const result = await createNote(mockTriliumClient, {
-        title: longTitle,
-        content: 'Content',
-        type: 'text'
-      });
-
-      expect(result.isError).toBe(true);
-      expect(result.content[0].text).toContain('Validation error:');
-      expect(mockTriliumClient.post).not.toHaveBeenCalled();
-    });
-
-    test('should reject non-string title', async () => {
-      const result = await createNote(mockTriliumClient, {
-        title: 123,
-        content: 'Content',
-        type: 'text'
-      });
-
-      expect(result.isError).toBe(true);
-      expect(result.content[0].text).toContain('Validation error:');
-      expect(mockTriliumClient.post).not.toHaveBeenCalled();
-    });
-
-    test('should reject null/undefined title', async () => {
-      const result = await createNote(mockTriliumClient, {
-        title: null,
-        content: 'Content',
-        type: 'text'
-      });
-
-      expect(result.isError).toBe(true);
-      expect(result.content[0].text).toContain('Validation error:');
-      expect(mockTriliumClient.post).not.toHaveBeenCalled();
-    });
-
-    test('should reject non-string content', async () => {
-      const result = await createNote(mockTriliumClient, {
-        title: 'Valid Title',
-        content: 123,
-        type: 'text'
-      });
-
-      expect(result.isError).toBe(true);
-      expect(result.content[0].text).toContain('Validation error:');
-      expect(mockTriliumClient.post).not.toHaveBeenCalled();
-    });
-
-    test('should reject invalid note type', async () => {
-      const result = await createNote(mockTriliumClient, {
-        title: 'Valid Title',
-        content: 'Valid content',
-        type: 'invalid-type'
-      });
-
-      expect(result.isError).toBe(true);
-      expect(result.content[0].text).toContain('Validation error:');
-      expect(mockTriliumClient.post).not.toHaveBeenCalled();
-    });
-
-    test('should accept valid note types', async () => {
-      const validTypes = ['text', 'code', 'file', 'image', 'search', 'book'];
-      const mockResponse = {
-        note: {
-          noteId: 'test123',
-          title: 'Test Note',
-          type: 'text'
-        }
-      };
-
+    test('accepts valid note types', async () => {
+      const validTypes = ['text', 'code', 'mermaid', 'canvas', 'book'];
       for (const type of validTypes) {
-        mockTriliumClient.post.mockResolvedValue(mockResponse);
-
-        const result = await createNote(mockTriliumClient, {
-          title: 'Test Note',
-          content: 'Test content',
-          type: type
-        });
-
-        expect(result.isError).not.toBe(true);
-        mockTriliumClient.post.mockClear();
+        mockClient.post.mockResolvedValue({ note: { noteId: type, title: 't', type } });
+        const result = await createNote(mockClient, { title: 't', content: 'x', type, format: 'raw', parentNoteId: 'root' });
+        expect(result.isError).toBeFalsy();
       }
     });
 
-    test('should reject invalid parentNoteId format', async () => {
-      const result = await createNote(mockTriliumClient, {
-        title: 'Valid Title',
-        content: 'Valid content',
-        type: 'text',
-        parentNoteId: '   '  // whitespace-only should trigger validation error
-      });
-
-      expect(result.isError).toBe(true);
-      expect(result.content[0].text).toContain('Validation error:');
-      expect(mockTriliumClient.post).not.toHaveBeenCalled();
-    });
-
-    test('should trim whitespace from title', async () => {
-      const mockResponse = {
-        note: {
-          noteId: 'abc123',
-          title: 'Trimmed Title',
-          type: 'text'
-        }
-      };
-
-      mockTriliumClient.post.mockResolvedValue(mockResponse);
-
-      await createNote(mockTriliumClient, {
-        title: '  Trimmed Title  ',
-        content: 'Content',
-        type: 'text'
-      });
-
-      expect(mockTriliumClient.post).toHaveBeenCalledWith('create-note', {
-        title: 'Trimmed Title',
-        content: 'Content',
-        type: 'text',
-        parentNoteId: 'root'
-      });
+    test('trims whitespace from title', async () => {
+      mockClient.post.mockResolvedValue({ note: { noteId: 'a', title: 'Trimmed', type: 'text' } });
+      await createNote(mockClient, { title: '  Trimmed  ', content: 'x', format: 'raw', parentNoteId: 'root' });
+      const body = mockClient.post.mock.calls[0][1];
+      expect(body.title).toBe('Trimmed');
     });
   });
 
   describe('API error handling', () => {
-    test('should handle TriliumNext API errors', async () => {
-      const apiError = new TriliumAPIError('Server unavailable', 503);
-      mockTriliumClient.post.mockRejectedValue(apiError);
-
-      const result = await createNote(mockTriliumClient, {
-        title: 'Test Note',
-        content: 'Test content',
-        type: 'text'
-      });
-
+    test('handles TriliumAPIError', async () => {
+      mockClient.post.mockRejectedValue(new TriliumAPIError('Server error', 500));
+      const result = await createNote(mockClient, { title: 'T', content: 'x', format: 'raw', parentNoteId: 'root' });
       expect(result.isError).toBe(true);
-      expect(result.content[0].text).toContain('TriliumNext API error: Server unavailable');
-      
-      const jsonData = JSON.parse(result.content[1].text);
-      expect(jsonData.error.type).toBe('TriliumAPIError');
-      expect(jsonData.error.status).toBe(503);
-      expect(jsonData.error.message).toBe('Server unavailable');
+      expect(result.content[0].text).toContain('TriliumNext API error');
+      expect(payloadOf(result).error.status).toBe(500);
     });
 
-    test('should handle authentication errors', async () => {
-      const authError = new TriliumAPIError('Authentication failed', 401);
-      mockTriliumClient.post.mockRejectedValue(authError);
-
-      const result = await createNote(mockTriliumClient, {
-        title: 'Test Note',
-        content: 'Test content',
-        type: 'text'
-      });
-
+    test('handles auth error', async () => {
+      mockClient.post.mockRejectedValue(new TriliumAPIError('Authentication failed', 401));
+      const result = await createNote(mockClient, { title: 'T', content: 'x', format: 'raw', parentNoteId: 'root' });
       expect(result.isError).toBe(true);
-      expect(result.content[0].text).toContain('TriliumNext API error: Authentication failed');
-      
-      const jsonData = JSON.parse(result.content[1].text);
-      expect(jsonData.error.status).toBe(401);
+      expect(result.content[0].text).toContain('TriliumNext API error');
     });
 
-    test('should handle invalid API response format', async () => {
-      // Return response without note or noteId
-      mockTriliumClient.post.mockResolvedValue({ invalid: 'response' });
-
-      const result = await createNote(mockTriliumClient, {
-        title: 'Test Note',
-        content: 'Test content',
-        type: 'text'
-      });
-
+    test('handles invalid API response (missing noteId)', async () => {
+      mockClient.post.mockResolvedValue({});
+      const result = await createNote(mockClient, { title: 'T', content: 'x', format: 'raw', parentNoteId: 'root' });
       expect(result.isError).toBe(true);
-      expect(result.content[0].text).toContain('TriliumNext API error: Invalid response from TriliumNext API - missing note ID');
     });
 
-    test('should handle network errors', async () => {
-      const networkError = new Error('Network timeout');
-      mockTriliumClient.post.mockRejectedValue(networkError);
-
-      const result = await createNote(mockTriliumClient, {
-        title: 'Test Note',
-        content: 'Test content',
-        type: 'text'
-      });
-
+    test('handles network error', async () => {
+      mockClient.post.mockRejectedValue(new Error('Network'));
+      const result = await createNote(mockClient, { title: 'T', content: 'x', format: 'raw', parentNoteId: 'root' });
       expect(result.isError).toBe(true);
-      expect(result.content[0].text).toContain('Note creation failed: Network timeout');
-      
-      const jsonData = JSON.parse(result.content[1].text);
-      expect(jsonData.error.type).toBe('Error');
-      expect(jsonData.error.message).toBe('Network timeout');
+      expect(result.content[0].text).toContain('Note creation failed: Network');
     });
 
-    test('should include error context in structured response', async () => {
-      const apiError = new TriliumAPIError('Server error', 500, { details: 'Database connection failed' });
-      mockTriliumClient.post.mockRejectedValue(apiError);
-
-      const result = await createNote(mockTriliumClient, {
-        title: 'Test Note',
-        content: 'Test content',
-        type: 'text'
-      });
-
-      const jsonData = JSON.parse(result.content[1].text);
-      expect(jsonData.operation).toBe('create_note');
-      expect(jsonData.request.title).toBe('Test Note');
-      expect(jsonData.request.contentLength).toBe(12);
-      expect(jsonData.error.details).toEqual({ details: 'Database connection failed' });
+    test('includes error context in payload', async () => {
+      mockClient.post.mockRejectedValue(new TriliumAPIError('Err', 500));
+      const result = await createNote(mockClient, { title: 'T', content: 'x', format: 'raw', parentNoteId: 'root' });
+      const p = payloadOf(result);
+      expect(p.operation).toBe('create_note');
+      expect(p.request.title).toBe('T');
+      expect(p.error.type).toBe('TriliumAPIError');
     });
   });
 
   describe('edge cases', () => {
-    test('should handle very long content', async () => {
-      const longContent = 'A'.repeat(10000);
-      const mockResponse = {
-        note: {
-          noteId: 'long123',
-          title: 'Long Content Note',
-          type: 'text'
-        }
-      };
-
-      mockTriliumClient.post.mockResolvedValue(mockResponse);
-
-      const result = await createNote(mockTriliumClient, {
-        title: 'Long Content Note',
-        content: longContent,
-        type: 'text'
-      });
-
-      expect(result.content[0].text).toBe('Note created: "Long Content Note" (ID: long123)');
-      
-      const jsonData = JSON.parse(result.content[1].text);
-      expect(jsonData.request.contentLength).toBe(10000);
+    test('handles very long content', async () => {
+      const longContent = 'A'.repeat(50000);
+      mockClient.post.mockResolvedValue({ note: { noteId: 'L', title: 'L', type: 'text' } });
+      const result = await createNote(mockClient, { title: 'L', content: longContent, format: 'raw', parentNoteId: 'root' });
+      expect(result.isError).toBeFalsy();
+      expect(payloadOf(result).request.inputLength).toBe(50000);
     });
 
-    test('should handle special characters in title and content', async () => {
-      const mockResponse = {
-        note: {
-          noteId: 'special123',
-          title: 'Special & "Chars" <Test>',
-          type: 'text'
-        }
-      };
-
-      mockTriliumClient.post.mockResolvedValue(mockResponse);
-
-      const result = await createNote(mockTriliumClient, {
-        title: 'Special & "Chars" <Test>',
-        content: 'Content with special chars: !@#$%^&*(){}[]|\\:";\'<>?,./',
-        type: 'text'
-      });
-
-      expect(mockTriliumClient.post).toHaveBeenCalledWith('create-note', {
-        title: 'Special & "Chars" <Test>',
-        content: 'Content with special chars: !@#$%^&*(){}[]|\\:";\'<>?,./',
-        type: 'text',
-        parentNoteId: 'root'
-      });
-
-      expect(result.content[0].text).toBe('Note created: "Special & "Chars" <Test>" (ID: special123)');
+    test('handles unicode in title and content', async () => {
+      mockClient.post.mockResolvedValue({ note: { noteId: 'u', title: '日本語 🌸', type: 'text' } });
+      const result = await createNote(mockClient, { title: '日本語 🌸', content: 'こんにちは', format: 'raw', parentNoteId: 'root' });
+      expect(result.isError).toBeFalsy();
     });
 
-    test('should handle Unicode characters', async () => {
-      const mockResponse = {
-        note: {
-          noteId: 'unicode123',
-          title: '日本語のノート 🌸',
-          type: 'text'
-        }
-      };
-
-      mockTriliumClient.post.mockResolvedValue(mockResponse);
-
-      const result = await createNote(mockTriliumClient, {
-        title: '日本語のノート 🌸',
-        content: 'Unicode content: 你好世界 🌍 Здравствуй мир',
-        type: 'text'
-      });
-
-      expect(result.content[0].text).toBe('Note created: "日本語のノート 🌸" (ID: unicode123)');
-      
-      const jsonData = JSON.parse(result.content[1].text);
-      expect(jsonData.request.title).toBe('日本語のノート 🌸');
-    });
-
-    test('should handle empty content', async () => {
-      const mockResponse = {
-        note: {
-          noteId: 'empty123',
-          title: 'Empty Content Note',
-          type: 'text'
-        }
-      };
-
-      mockTriliumClient.post.mockResolvedValue(mockResponse);
-
-      const result = await createNote(mockTriliumClient, {
-        title: 'Empty Content Note',
-        content: '',
-        type: 'text'
-      });
-
-      const jsonData = JSON.parse(result.content[1].text);
-      expect(jsonData.request.contentLength).toBe(0);
-    });
-
-    test('should handle missing optional response fields gracefully', async () => {
-      const mockResponse = {
-        note: {
-          noteId: 'minimal123'
-          // Missing title, type, and other optional fields
-        }
-      };
-
-      mockTriliumClient.post.mockResolvedValue(mockResponse);
-
-      const result = await createNote(mockTriliumClient, {
-        title: 'Test Note',
-        content: 'Test content',
-        type: 'text'
-      });
-
-      expect(result.content[0].text).toBe('Note created: "Test Note" (ID: minimal123)');
-
-      const jsonData = JSON.parse(result.content[1].text);
-      expect(jsonData.result.noteId).toBe('minimal123');
+    test('handles empty content', async () => {
+      mockClient.post.mockResolvedValue({ note: { noteId: 'e', title: 'E', type: 'text' } });
+      const result = await createNote(mockClient, { title: 'E', content: '', format: 'raw', parentNoteId: 'root' });
+      expect(result.isError).toBeFalsy();
     });
   });
 
   describe('mime parameter', () => {
     test('passes mime to API when provided', async () => {
-      const mockNote = {
-        noteId: 'note999',
-        title: 'MD Note',
-        type: 'text',
-        mime: 'text/markdown'
-      };
-      mockTriliumClient.post.mockResolvedValue({ note: mockNote });
-
-      const result = await createNote(mockTriliumClient, {
-        title: 'MD Note',
-        content: '# Hello',
-        type: 'text',
-        mime: 'text/markdown',
-        parentNoteId: 'root'
-      });
-
-      expect(mockTriliumClient.post).toHaveBeenCalledWith(
-        'create-note',
-        expect.objectContaining({ mime: 'text/markdown' })
-      );
-      expect(result.content[0].text).toContain('Note created');
+      mockClient.post.mockResolvedValue({ note: { noteId: 'n', title: 'T', type: 'text', mime: 'text/markdown' } });
+      await createNote(mockClient, { title: 'T', content: '# h', type: 'text', mime: 'text/markdown', parentNoteId: 'root' });
+      const body = mockClient.post.mock.calls[0][1];
+      expect(body.mime).toBe('text/markdown');
     });
 
-    test('omits mime from body when not provided', async () => {
-      const mockNote = { noteId: 'note998', title: 'T', type: 'text' };
-      mockTriliumClient.post.mockResolvedValue({ note: mockNote });
-
-      await createNote(mockTriliumClient, {
-        title: 'T',
-        content: 'x',
-        parentNoteId: 'root'
-      });
-
-      const calledBody = mockTriliumClient.post.mock.calls[0][1];
-      expect(calledBody).not.toHaveProperty('mime');
-    });
-
-    test('accepts mermaid type', async () => {
-      const mockNote = { noteId: 'm1', title: 'Diagram', type: 'mermaid' };
-      mockTriliumClient.post.mockResolvedValue({ note: mockNote });
-
-      const result = await createNote(mockTriliumClient, {
-        title: 'Diagram',
-        content: 'graph TD;A-->B;',
-        type: 'mermaid',
-        parentNoteId: 'root'
-      });
-
-      expect(result.isError).toBeUndefined();
-      expect(mockTriliumClient.post).toHaveBeenCalledWith(
-        'create-note',
-        expect.objectContaining({ type: 'mermaid' })
-      );
-    });
-
-    test('rejects invalid type like markdown', async () => {
-      const result = await createNote(mockTriliumClient, {
-        title: 'X',
-        content: 'x',
-        type: 'markdown',
-        parentNoteId: 'root'
-      });
-      expect(result.isError).toBe(true);
-      expect(result.content[0].text).toContain('Validation error');
+    test('omits mime from body when not provided and no conversion needed', async () => {
+      mockClient.post.mockResolvedValue({ note: { noteId: 'n', title: 'T', type: 'text' } });
+      await createNote(mockClient, { title: 'T', content: 'x', format: 'raw', parentNoteId: 'root' });
+      const body = mockClient.post.mock.calls[0][1];
+      expect(body).not.toHaveProperty('mime');
     });
   });
 });

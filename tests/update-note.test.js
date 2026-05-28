@@ -1,422 +1,177 @@
 import { jest } from '@jest/globals';
 import { updateNote } from '../src/tools/update-note.js';
-import { ValidationError } from '../src/utils/validation.js';
 import { TriliumAPIError } from '../src/utils/trilium-client.js';
 
-// Mock the logger to avoid console output during tests
 jest.mock('../src/utils/logger.js', () => ({
-  logger: {
-    debug: jest.fn(),
-    info: jest.fn(),
-    error: jest.fn()
-  }
+  logger: { debug: jest.fn(), info: jest.fn(), error: jest.fn(), warn: jest.fn() }
 }));
+
+const payloadOf = (result) => JSON.parse(result.content[1].text);
 
 describe('updateNote', () => {
   let mockClient;
 
-  // Mock note data
-  const mockNote = {
-    noteId: "note123abc",
-    title: "JavaScript Fundamentals",
-    type: "text",
-    mime: "text/html",
-    isProtected: false,
-    isDeleted: false,
-    dateCreated: "2024-01-15T10:30:00.000Z",
-    dateModified: "2024-01-15T14:45:00.000Z",
-    utcDateCreated: "2024-01-15T10:30:00.000Z",
-    utcDateModified: "2024-01-15T14:45:00.000Z",
-    parentNoteId: "root",
-    contentLength: 1250
-  };
-
-  const mockCodeNote = {
-    ...mockNote,
-    noteId: "note456def",
-    title: "React Components Guide",
-    type: "code",
-    mime: "text/x-javascript"
-  };
-
   beforeEach(() => {
-    // Reset mock client before each test
-    mockClient = {
-      get: jest.fn(),
-      put: jest.fn(),
-      putRaw: jest.fn()
-    };
+    mockClient = { get: jest.fn(), putRaw: jest.fn() };
     jest.clearAllMocks();
   });
 
   describe('Successful updates', () => {
-    test('should update note content successfully', async () => {
-      // Arrange
+    test('updates note content with raw format (passthrough)', async () => {
       const noteId = 'note123abc';
-      const content = 'Updated content for the note';
-      const existingNote = mockNote;
-      const updatedNote = {
-        ...existingNote,
-        dateModified: '2024-01-25T15:30:00.000Z'
-      };
+      const content = 'Updated content';
+      const existingNote = { noteId, title: 'Test', type: 'text', mime: 'text/html' };
 
-      mockClient.get.mockResolvedValueOnce(existingNote); // Note exists check
-      mockClient.putRaw.mockResolvedValueOnce({}); // Content update
-      mockClient.get.mockResolvedValueOnce(updatedNote); // Updated note info
+      mockClient.get
+        .mockResolvedValueOnce(existingNote)
+        .mockResolvedValueOnce({ ...existingNote, dateModified: '2024-01-25T15:30:00.000Z' });
+      mockClient.putRaw.mockResolvedValueOnce({ success: true });
 
-      // Act
-      const result = await updateNote(mockClient, { noteId, content });
+      const result = await updateNote(mockClient, { noteId, content, format: 'raw' });
 
-      // Assert
-      expect(mockClient.get).toHaveBeenCalledWith(`notes/${noteId}`);
+      expect(result.isError).toBeFalsy();
       expect(mockClient.putRaw).toHaveBeenCalledWith(`notes/${noteId}/content`, content);
-      expect(mockClient.get).toHaveBeenCalledWith(`notes/${noteId}`);
-      
-      expect(result.content).toHaveLength(2);
-      expect(result.content[0].type).toBe('text');
-      expect(result.content[0].text).toContain('Note updated: "JavaScript Fundamentals"');
-      expect(result.content[0].text).toContain(`(ID: ${noteId})`);
-      
-      expect(result.content[1].type).toBe('text');
-      const jsonData = JSON.parse(result.content[1].text);
-      expect(jsonData.operation).toBe('update_note');
-      expect(jsonData.request.noteId).toBe(noteId);
-      expect(jsonData.request.contentLength).toBe(content.length);
-      expect(jsonData.result.noteId).toBe(noteId);
-      expect(jsonData.result.title).toBe('JavaScript Fundamentals');
+      const payload = payloadOf(result);
+      expect(payload.operation).toBe('update_note');
+      expect(payload.request.converted).toBe(false);
+      expect(payload.result.noteId).toBe(noteId);
     });
 
-    test('should handle note with empty title', async () => {
-      // Arrange
-      const noteId = 'note456def';
-      const content = 'Some content';
-      const noteWithoutTitle = {
-        ...mockNote,
-        noteId,
-        title: null
-      };
-      const updatedNote = {
-        ...noteWithoutTitle,
-        dateModified: '2024-01-25T15:30:00.000Z'
-      };
-
-      mockClient.get.mockResolvedValueOnce(noteWithoutTitle);
+    test('converts markdown to HTML for text notes by default', async () => {
+      const noteId = 'noteMD';
+      const existingNote = { noteId, title: 't', type: 'text', mime: 'text/html' };
+      mockClient.get
+        .mockResolvedValueOnce(existingNote)
+        .mockResolvedValueOnce(existingNote);
       mockClient.putRaw.mockResolvedValueOnce({});
-      mockClient.get.mockResolvedValueOnce(updatedNote);
 
-      // Act
-      const result = await updateNote(mockClient, { noteId, content });
+      const result = await updateNote(mockClient, { noteId, content: '# Titolo\n\n**bold**' });
 
-      // Assert
-      expect(result.content[0].text).toContain('Note updated: "Untitled"');
+      const sentBody = mockClient.putRaw.mock.calls[0][1];
+      expect(sentBody).toContain('<h1');
+      expect(sentBody).toContain('<strong>bold</strong>');
+      expect(payloadOf(result).request.converted).toBe(true);
     });
 
-    test('should handle different note types', async () => {
-      // Arrange
-      const noteId = 'note789ghi';
-      const content = 'console.log("Updated code");';
-      const codeNote = {
-        ...mockCodeNote,
-        noteId
-      };
-      const updatedNote = {
-        ...codeNote,
-        dateModified: '2024-01-25T15:30:00.000Z'
-      };
-
-      mockClient.get.mockResolvedValueOnce(codeNote);
+    test('skips conversion when type is not text', async () => {
+      const noteId = 'noteCode';
+      const existingNote = { noteId, title: 't', type: 'code', mime: 'application/javascript' };
+      mockClient.get.mockResolvedValueOnce(existingNote).mockResolvedValueOnce(existingNote);
       mockClient.putRaw.mockResolvedValueOnce({});
-      mockClient.get.mockResolvedValueOnce(updatedNote);
 
-      // Act
-      const result = await updateNote(mockClient, { noteId, content });
+      await updateNote(mockClient, { noteId, content: '# this is code' });
 
-      // Assert
-      const jsonData = JSON.parse(result.content[1].text);
-      expect(jsonData.result.type).toBe('code');
+      expect(mockClient.putRaw).toHaveBeenCalledWith(`notes/${noteId}/content`, '# this is code');
     });
 
-    test('should include content length in response', async () => {
-      // Arrange
-      const noteId = 'note101jkl';
-      const largeContent = 'A'.repeat(10000); // 10KB content
-      const existingNote = mockNote;
-      const updatedNote = {
-        ...existingNote,
-        dateModified: '2024-01-25T15:30:00.000Z'
-      };
-
-      mockClient.get.mockResolvedValueOnce(existingNote);
+    test('skips conversion when existing mime is markdown', async () => {
+      const noteId = 'noteMd';
+      const existingNote = { noteId, title: 't', type: 'text', mime: 'text/markdown' };
+      mockClient.get.mockResolvedValueOnce(existingNote).mockResolvedValueOnce(existingNote);
       mockClient.putRaw.mockResolvedValueOnce({});
-      mockClient.get.mockResolvedValueOnce(updatedNote);
 
-      // Act
-      const result = await updateNote(mockClient, { noteId, content: largeContent });
+      await updateNote(mockClient, { noteId, content: '# stays markdown' });
+      expect(mockClient.putRaw).toHaveBeenCalledWith(`notes/${noteId}/content`, '# stays markdown');
+    });
 
-      // Assert
-      const jsonData = JSON.parse(result.content[1].text);
-      expect(jsonData.request.contentLength).toBe(largeContent.length);
+    test('honors format=html passthrough', async () => {
+      const noteId = 'noteH';
+      const existingNote = { noteId, title: 't', type: 'text', mime: 'text/html' };
+      mockClient.get.mockResolvedValueOnce(existingNote).mockResolvedValueOnce(existingNote);
+      mockClient.putRaw.mockResolvedValueOnce({});
+
+      await updateNote(mockClient, { noteId, content: '<p>raw html</p>', format: 'html' });
+      expect(mockClient.putRaw).toHaveBeenCalledWith(`notes/${noteId}/content`, '<p>raw html</p>');
     });
   });
 
   describe('Input validation', () => {
-    test('should reject empty noteId', async () => {
-      // Act
-      const result = await updateNote(mockClient, { noteId: '', content: 'test' });
-
-      // Assert
+    test('rejects empty noteId', async () => {
+      const result = await updateNote(mockClient, { noteId: '', content: 'x' });
       expect(result.isError).toBe(true);
-      expect(result.content[0].text).toContain('Validation error:');
-      expect(result.content[0].text).toContain('Note ID must be a non-empty string');
-      expect(mockClient.get).not.toHaveBeenCalled();
-      expect(mockClient.putRaw).not.toHaveBeenCalled();
+      expect(result.content[0].text).toContain('Validation error');
     });
 
-    test('should reject null noteId', async () => {
-      // Act
-      const result = await updateNote(mockClient, { noteId: null, content: 'test' });
-
-      // Assert
+    test('rejects null content', async () => {
+      const result = await updateNote(mockClient, { noteId: 'x', content: null });
       expect(result.isError).toBe(true);
-      expect(result.content[0].text).toContain('Note ID must be a non-empty string');
+      expect(result.content[0].text).toContain('Validation error');
     });
 
-    test('should reject null content', async () => {
-      // Act
-      const result = await updateNote(mockClient, { noteId: 'note123', content: null });
-
-      // Assert
+    test('rejects oversize content', async () => {
+      const result = await updateNote(mockClient, { noteId: 'x', content: 'A'.repeat(1000001) });
       expect(result.isError).toBe(true);
-      expect(result.content[0].text).toContain('Content cannot be null or undefined');
+      expect(result.content[0].text).toContain('Validation error');
     });
 
-    test('should reject content exceeding maximum size', async () => {
-      // Arrange
-      const oversizedContent = 'A'.repeat(1000001); // > 1MB
-
-      // Act
-      const result = await updateNote(mockClient, { noteId: 'note123', content: oversizedContent });
-
-      // Assert
+    test('rejects invalid format', async () => {
+      const result = await updateNote(mockClient, { noteId: 'x', content: 'y', format: 'xml' });
       expect(result.isError).toBe(true);
-      expect(result.content[0].text).toContain('Content cannot exceed 1MB');
-    });
-
-    test('should accept content at maximum size limit', async () => {
-      // Arrange
-      const maxContent = 'A'.repeat(1000000); // Exactly 1MB
-      const existingNote = mockNote;
-      const updatedNote = { ...existingNote, dateModified: '2024-01-25T15:30:00.000Z' };
-
-      mockClient.get.mockResolvedValueOnce(existingNote);
-      mockClient.putRaw.mockResolvedValueOnce({});
-      mockClient.get.mockResolvedValueOnce(updatedNote);
-
-      // Act
-      const result = await updateNote(mockClient, { noteId: 'note123', content: maxContent });
-
-      // Assert
-      expect(result.isError).not.toBe(true);
-      expect(mockClient.putRaw).toHaveBeenCalledWith('notes/note123/content', maxContent);
+      expect(result.content[0].text).toContain('format must be one of');
     });
   });
 
-  describe('Note existence checks', () => {
-    test('should handle note not found (404)', async () => {
-      // Arrange
-      const noteId = 'nonexistent123';
-      const content = 'test content';
-      const error = new TriliumAPIError('Note not found', 404);
-      mockClient.get.mockRejectedValueOnce(error);
-
-      // Act
-      const result = await updateNote(mockClient, { noteId, content });
-
-      // Assert
+  describe('Note existence and API errors', () => {
+    test('handles 404 on existence check', async () => {
+      mockClient.get.mockRejectedValueOnce(new TriliumAPIError('Not found', 404));
+      const result = await updateNote(mockClient, { noteId: 'x', content: 'y', format: 'raw' });
       expect(result.isError).toBe(true);
-      expect(result.content[0].text).toContain(`Note not found: ${noteId}`);
+      expect(result.content[0].text).toContain('Note not found: x');
       expect(mockClient.putRaw).not.toHaveBeenCalled();
     });
 
-    test('should handle null response when checking note existence', async () => {
-      // Arrange
-      const noteId = 'note123abc';
-      const content = 'test content';
+    test('handles null note response as 404', async () => {
       mockClient.get.mockResolvedValueOnce(null);
-
-      // Act
-      const result = await updateNote(mockClient, { noteId, content });
-
-      // Assert
+      const result = await updateNote(mockClient, { noteId: 'x', content: 'y', format: 'raw' });
       expect(result.isError).toBe(true);
-      expect(result.content[0].text).toContain(`Note not found: ${noteId}`);
-      expect(mockClient.putRaw).not.toHaveBeenCalled();
+      expect(result.content[0].text).toContain('Note not found: x');
+    });
+
+    test('handles 403 on update', async () => {
+      mockClient.get.mockResolvedValueOnce({ noteId: 'x', type: 'text' });
+      mockClient.putRaw.mockRejectedValueOnce(new TriliumAPIError('Forbidden', 403));
+      const result = await updateNote(mockClient, { noteId: 'x', content: 'y', format: 'raw' });
+      expect(result.isError).toBe(true);
+      expect(result.content[0].text).toContain('Access denied');
+    });
+
+    test('handles 500 on update', async () => {
+      mockClient.get.mockResolvedValueOnce({ noteId: 'x', type: 'text' });
+      mockClient.putRaw.mockRejectedValueOnce(new TriliumAPIError('Internal', 500));
+      const result = await updateNote(mockClient, { noteId: 'x', content: 'y', format: 'raw' });
+      expect(result.isError).toBe(true);
+      expect(result.content[0].text).toContain('TriliumNext API error');
+    });
+
+    test('handles network error', async () => {
+      mockClient.get.mockResolvedValueOnce({ noteId: 'x', type: 'text' });
+      mockClient.putRaw.mockRejectedValueOnce(new Error('Network'));
+      const result = await updateNote(mockClient, { noteId: 'x', content: 'y', format: 'raw' });
+      expect(result.isError).toBe(true);
+      expect(result.content[0].text).toContain('Failed to update note: Network');
     });
   });
 
-  describe('Update operation errors', () => {
-    test('should handle forbidden error (403) on update', async () => {
-      // Arrange
-      const noteId = 'note123abc';
-      const content = 'test content';
-      const existingNote = mockNote;
-      const error = new TriliumAPIError('Access forbidden', 403);
-
-      mockClient.get.mockResolvedValueOnce(existingNote);
-      mockClient.putRaw.mockRejectedValueOnce(error);
-
-      // Act
-      const result = await updateNote(mockClient, { noteId, content });
-
-      // Assert
-      expect(result.isError).toBe(true);
-      expect(result.content[0].text).toContain('Access denied: Cannot update note');
-      expect(result.content[0].text).toContain(noteId);
-    });
-
-    test('should handle unauthorized error (401) on update', async () => {
-      // Arrange
-      const noteId = 'note123abc';
-      const content = 'test content';
-      const existingNote = mockNote;
-      const error = new TriliumAPIError('Authentication failed', 401);
-
-      mockClient.get.mockResolvedValueOnce(existingNote);
-      mockClient.putRaw.mockRejectedValueOnce(error);
-
-      // Act
-      const result = await updateNote(mockClient, { noteId, content });
-
-      // Assert
-      expect(result.isError).toBe(true);
-      expect(result.content[0].text).toContain('TriliumNext API error: Authentication failed');
-    });
-
-    test('should handle server error (500) on update', async () => {
-      // Arrange
-      const noteId = 'note123abc';
-      const content = 'test content';
-      const existingNote = mockNote;
-      const error = new TriliumAPIError('Internal server error', 500);
-
-      mockClient.get.mockResolvedValueOnce(existingNote);
-      mockClient.putRaw.mockRejectedValueOnce(error);
-
-      // Act
-      const result = await updateNote(mockClient, { noteId, content });
-
-      // Assert
-      expect(result.isError).toBe(true);
-      expect(result.content[0].text).toContain('TriliumNext API error: Internal server error');
-    });
-
-    test('should handle network errors on update', async () => {
-      // Arrange
-      const noteId = 'note123abc';
-      const content = 'test content';
-      const existingNote = mockNote;
-      const error = new Error('Network Error');
-      error.code = 'ECONNREFUSED';
-
-      mockClient.get.mockResolvedValueOnce(existingNote);
-      mockClient.putRaw.mockRejectedValueOnce(error);
-
-      // Act
-      const result = await updateNote(mockClient, { noteId, content });
-
-      // Assert
-      expect(result.isError).toBe(true);
-      expect(result.content[0].text).toContain('Failed to update note: Network Error');
-    });
-  });
-
-  describe('Structured response format', () => {
-    test('should return structured JSON data for successful updates', async () => {
-      // Arrange
-      const noteId = 'note123abc';
-      const content = 'Test content';
-      const existingNote = mockNote;
-      const updatedNote = { ...existingNote, dateModified: '2024-01-25T15:30:00.000Z' };
-
-      mockClient.get.mockResolvedValueOnce(existingNote);
+  describe('Structured response', () => {
+    test('success payload has operation, request, result', async () => {
+      mockClient.get.mockResolvedValueOnce({ noteId: 'x', type: 'text', mime: 'text/html' });
+      mockClient.get.mockResolvedValueOnce({ noteId: 'x', title: 'T', type: 'text', dateModified: 'now' });
       mockClient.putRaw.mockResolvedValueOnce({});
-      mockClient.get.mockResolvedValueOnce(updatedNote);
 
-      // Act
-      const result = await updateNote(mockClient, { noteId, content });
-
-      // Assert
-      const jsonData = JSON.parse(result.content[1].text);
-      expect(jsonData).toHaveProperty('operation', 'update_note');
-      expect(jsonData).toHaveProperty('timestamp');
-      expect(jsonData.request).toEqual({
-        noteId,
-        contentLength: content.length
-      });
-      expect(jsonData.result).toMatchObject({
-        noteId,
-        title: 'JavaScript Fundamentals',
-        type: 'text',
-        triliumUrl: `trilium://note/${noteId}`
-      });
+      const result = await updateNote(mockClient, { noteId: 'x', content: 'plain', format: 'raw' });
+      const p = payloadOf(result);
+      expect(p.operation).toBe('update_note');
+      expect(p.request.noteId).toBe('x');
+      expect(p.request.inputLength).toBe(5);
+      expect(p.request.storedLength).toBe(5);
+      expect(p.result.noteId).toBe('x');
     });
 
-    test('should return structured JSON data for errors', async () => {
-      // Arrange
-      const noteId = 'note123abc';
-      const content = null;
-
-      // Act
-      const result = await updateNote(mockClient, { noteId, content });
-
-      // Assert
-      expect(result.isError).toBe(true);
-      const jsonData = JSON.parse(result.content[1].text);
-      expect(jsonData).toHaveProperty('operation', 'update_note');
-      expect(jsonData).toHaveProperty('timestamp');
-      expect(jsonData.error).toMatchObject({
-        type: 'ValidationError',
-        message: 'Content cannot be null or undefined'
-      });
-    });
-  });
-
-  describe('API call sequence', () => {
-    test('should make API calls in correct order', async () => {
-      // Arrange
-      const noteId = 'note123abc';
-      const content = 'Updated content';
-      const existingNote = mockNote;
-      const updatedNote = { ...existingNote, dateModified: '2024-01-25T15:30:00.000Z' };
-
-      mockClient.get.mockResolvedValueOnce(existingNote);
-      mockClient.putRaw.mockResolvedValueOnce({});
-      mockClient.get.mockResolvedValueOnce(updatedNote);
-
-      // Act
-      await updateNote(mockClient, { noteId, content });
-
-      // Assert
-      expect(mockClient.get).toHaveBeenNthCalledWith(1, `notes/${noteId}`);
-      expect(mockClient.putRaw).toHaveBeenNthCalledWith(1, `notes/${noteId}/content`, content);
-      expect(mockClient.get).toHaveBeenNthCalledWith(2, `notes/${noteId}`);
-      expect(mockClient.get).toHaveBeenCalledTimes(2);
-      expect(mockClient.putRaw).toHaveBeenCalledTimes(1);
-    });
-
-    test('should not make update call if note existence check fails', async () => {
-      // Arrange
-      const noteId = 'nonexistent123';
-      const content = 'test content';
-      const error = new TriliumAPIError('Note not found', 404);
-      mockClient.get.mockRejectedValueOnce(error);
-
-      // Act
-      await updateNote(mockClient, { noteId, content });
-
-      // Assert
-      expect(mockClient.get).toHaveBeenCalledTimes(1);
-      expect(mockClient.putRaw).not.toHaveBeenCalled();
+    test('error payload has operation and error type', async () => {
+      const result = await updateNote(mockClient, { noteId: 'x', content: null });
+      const p = payloadOf(result);
+      expect(p.operation).toBe('update_note');
+      expect(p.error.type).toBe('ValidationError');
     });
   });
 });

@@ -65,7 +65,7 @@ class TriliumMCPServer {
         tools: [
           {
             name: 'create_note',
-            description: 'Create a new note in TriliumNext',
+            description: 'Create a new note in TriliumNext. For text notes, content is interpreted as markdown by default and converted to HTML server-side to save tokens.',
             inputSchema: {
               type: 'object',
               properties: {
@@ -75,7 +75,13 @@ class TriliumMCPServer {
                 },
                 content: {
                   type: 'string',
-                  description: 'The content of the note (max 1MB)',
+                  description: 'Content of the note (max 1MB). For type=text with format=markdown (default), pass terse markdown — the server converts to HTML before storing.',
+                },
+                format: {
+                  type: 'string',
+                  enum: ['markdown', 'html', 'raw'],
+                  default: 'markdown',
+                  description: "Input format. 'markdown' (default): convert md→html for text notes (saves tokens). 'html': pass content as-is (no conversion). 'raw': passthrough. Conversion is skipped automatically when type!='text' or mime contains 'markdown'.",
                 },
                 type: {
                   type: 'string',
@@ -120,7 +126,7 @@ class TriliumMCPServer {
           },
           {
             name: 'get_note',
-            description: 'Get details of a specific note',
+            description: 'Get details of a specific note. By default converts HTML content to markdown to reduce token usage.',
             inputSchema: {
               type: 'object',
               properties: {
@@ -128,13 +134,29 @@ class TriliumMCPServer {
                   type: 'string',
                   description: 'The ID of the note to retrieve',
                 },
+                format: {
+                  type: 'string',
+                  enum: ['markdown', 'html', 'raw'],
+                  default: 'markdown',
+                  description: "Content format. 'markdown' (default) converts HTML notes to markdown to save tokens; 'html' returns original HTML; 'raw' returns content untouched.",
+                },
+                includeContent: {
+                  type: 'boolean',
+                  default: true,
+                  description: 'If false, only metadata is returned (no content fetch). Useful for cheap exploration.',
+                },
+                maxContentChars: {
+                  type: 'number',
+                  minimum: 1,
+                  description: 'Optional. Truncate content to this many characters (after format conversion). Adds truncated:true and originalLength to response.',
+                },
               },
               required: ['noteId'],
             },
           },
           {
             name: 'update_note',
-            description: 'Update the content of an existing note',
+            description: 'Update content of an existing note. For text notes, content is interpreted as markdown by default and converted to HTML server-side.',
             inputSchema: {
               type: 'object',
               properties: {
@@ -144,7 +166,13 @@ class TriliumMCPServer {
                 },
                 content: {
                   type: 'string',
-                  description: 'The new content for the note (max 1MB)',
+                  description: 'New content (max 1MB). For text notes with format=markdown (default), pass terse markdown — the server converts to HTML.',
+                },
+                format: {
+                  type: 'string',
+                  enum: ['markdown', 'html', 'raw'],
+                  default: 'markdown',
+                  description: "Input format. 'markdown' (default): convert md→html for text notes. 'html'/'raw': passthrough. Conversion is skipped automatically when the existing note type!='text' or mime contains 'markdown'.",
                 },
               },
               required: ['noteId', 'content'],

@@ -127,6 +127,15 @@ export const validators = {
     return num;
   },
 
+  contentFormat: (value) => {
+    if (value === undefined || value === null) return 'markdown';
+    const valid = ['markdown', 'html', 'raw'];
+    if (typeof value !== 'string' || !valid.includes(value)) {
+      throw new ValidationError(`format must be one of: ${valid.join(', ')}`);
+    }
+    return value;
+  },
+
   mime: (mime) => {
     if (mime === undefined || mime === null) {
       return undefined;
