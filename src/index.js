@@ -81,7 +81,7 @@ class TriliumMCPServer {
                   type: 'string',
                   enum: ['markdown', 'html', 'raw'],
                   default: 'markdown',
-                  description: "Input format. 'markdown' (default): convert md→html for text notes (saves tokens). 'html': pass content as-is (no conversion). 'raw': passthrough. Conversion is skipped automatically when type!='text' or mime contains 'markdown'.",
+                  description: "ALWAYS use the default 'markdown' when authoring note content — write terse markdown and the server converts to HTML, saving 30-60%+ tokens. Use 'html' ONLY when the caller already has hand-crafted HTML (e.g., specific CSS classes, raw tags). Use 'raw' ONLY for storing literal text without any transformation. Sending HTML when you could send markdown wastes tokens.",
                 },
                 type: {
                   type: 'string',
@@ -138,7 +138,7 @@ class TriliumMCPServer {
                   type: 'string',
                   enum: ['markdown', 'html', 'raw'],
                   default: 'markdown',
-                  description: "Content format. 'markdown' (default) converts HTML notes to markdown to save tokens; 'html' returns original HTML; 'raw' returns content untouched.",
+                  description: "ALWAYS use the default 'markdown' for reading, searching, citing or summarizing note content — it converts Trilium's HTML into markdown and saves 30-60%+ tokens. Use 'html' ONLY when you need to inspect the original HTML structure (rare debugging). Use 'raw' ONLY for verifying byte-exact storage. Using html/raw for normal reading wastes tokens.",
                 },
                 includeContent: {
                   type: 'boolean',
@@ -172,7 +172,7 @@ class TriliumMCPServer {
                   type: 'string',
                   enum: ['markdown', 'html', 'raw'],
                   default: 'markdown',
-                  description: "Input format. 'markdown' (default): convert md→html for text notes. 'html'/'raw': passthrough. Conversion is skipped automatically when the existing note type!='text' or mime contains 'markdown'.",
+                  description: "ALWAYS use the default 'markdown' when writing new content — pass terse markdown and the server converts to HTML, saving 30-60%+ tokens. Use 'html' ONLY when the caller specifically needs to send pre-built HTML. Use 'raw' ONLY for literal-text overwrites. Conversion is auto-skipped if the existing note type!='text' or mime is markdown.",
                 },
               },
               required: ['noteId', 'content'],
