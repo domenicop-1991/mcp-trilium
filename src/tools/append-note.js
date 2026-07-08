@@ -14,7 +14,7 @@ export async function appendNote(triliumClient, args) {
     const note = await triliumClient.get(`notes/${noteId}`);
     if (!note) throw new TriliumAPIError('Note not found', 404);
 
-    const existing = await triliumClient.get(`notes/${noteId}/content`);
+    const existing = await triliumClient.getRaw(`notes/${noteId}/content`);
     const base = typeof existing === 'string' ? existing : '';
 
     let addition = rawContent;

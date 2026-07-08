@@ -11,10 +11,9 @@ describe('appendNote', () => {
   let client;
   beforeEach(() => {
     client = {
-      get: jest.fn((url) =>
-        url.endsWith('/content')
-          ? Promise.resolve('<p>existing</p>')
-          : Promise.resolve({ noteId: 'n1', type: 'text', mime: 'text/html', title: 'T' })),
+      get: jest.fn(() =>
+        Promise.resolve({ noteId: 'n1', type: 'text', mime: 'text/html', title: 'T' })),
+      getRaw: jest.fn(() => Promise.resolve('<p>existing</p>')),
       putRaw: jest.fn(() => Promise.resolve()),
     };
     jest.clearAllMocks();
@@ -31,10 +30,8 @@ describe('appendNote', () => {
   });
 
   test('handles empty existing content (first append)', async () => {
-    client.get = jest.fn((url) =>
-      url.endsWith('/content')
-        ? Promise.resolve('')
-        : Promise.resolve({ noteId: 'n1', type: 'text', mime: 'text/html' }));
+    client.get = jest.fn(() => Promise.resolve({ noteId: 'n1', type: 'text', mime: 'text/html' }));
+    client.getRaw = jest.fn(() => Promise.resolve(''));
     await appendNote(client, { noteId: 'n1', content: 'prima' });
     expect(client.putRaw.mock.calls[0][1]).toContain('prima');
   });
@@ -56,5 +53,11 @@ describe('appendNote', () => {
     const res = await appendNote(client, { noteId: 'n1', content: null });
     expect(res.isError).toBe(true);
     expect(res.content[0].text).toMatch(/Validation error/);
+  });
+
+  test('does not lose content when existing note content is JSON-like text (regression)', async () => {
+    client.getRaw = jest.fn(() => Promise.resolve('{"k":1}'));
+    await appendNote(client, { noteId: 'n1', content: 'addendum', format: 'raw' });
+    expect(client.putRaw.mock.calls[0][1]).toBe('{"k":1}addendum');
   });
 });
