@@ -103,3 +103,53 @@ describe('validators.mime', () => {
     expect(() => validators.mime('a'.repeat(101))).toThrow(ValidationError);
   });
 });
+
+describe('orderDirection', () => {
+  test('returns undefined when absent', () => {
+    expect(validators.orderDirection(undefined)).toBeUndefined();
+    expect(validators.orderDirection(null)).toBeUndefined();
+  });
+  test('accepts asc/desc case-insensitive and normalizes', () => {
+    expect(validators.orderDirection('asc')).toBe('asc');
+    expect(validators.orderDirection('DESC')).toBe('desc');
+  });
+  test('throws on invalid value', () => {
+    expect(() => validators.orderDirection('sideways')).toThrow(ValidationError);
+  });
+});
+
+describe('boolean', () => {
+  test('returns undefined when absent', () => {
+    expect(validators.boolean(undefined)).toBeUndefined();
+    expect(validators.boolean(null)).toBeUndefined();
+  });
+  test('passes through native booleans', () => {
+    expect(validators.boolean(true)).toBe(true);
+    expect(validators.boolean(false)).toBe(false);
+  });
+  test('coerces string true/false', () => {
+    expect(validators.boolean('true')).toBe(true);
+    expect(validators.boolean('false')).toBe(false);
+  });
+  test('throws on non-boolean', () => {
+    expect(() => validators.boolean('yes', 'fastSearch')).toThrow(ValidationError);
+  });
+});
+
+describe('searchField', () => {
+  test('returns undefined when absent or blank', () => {
+    expect(validators.searchField(undefined)).toBeUndefined();
+    expect(validators.searchField('   ')).toBeUndefined();
+  });
+  test('accepts allowed charset', () => {
+    expect(validators.searchField('dateModified')).toBe('dateModified');
+    expect(validators.searchField('note.title')).toBe('note.title');
+    expect(validators.searchField('#priorita')).toBe('#priorita');
+  });
+  test('throws on invalid charset', () => {
+    expect(() => validators.searchField('title; DROP', 'orderBy')).toThrow(ValidationError);
+  });
+  test('throws when longer than 100 chars', () => {
+    expect(() => validators.searchField('a'.repeat(101), 'orderBy')).toThrow(ValidationError);
+  });
+});
