@@ -105,6 +105,7 @@ The server implements:
 - Labels: `#programming #javascript`
 - Combined queries: `"react hooks" #programming type:code`
 - Date filters: `dateCreated:>2024-01-01`
+- Native ETAPI params (optional): ancestorNoteId, ancestorDepth, orderBy, orderDirection, fastSearch, includeArchivedNotes — passed through directly to GET /notes
 
 ### Error Handling Strategy
 - ValidationError for input validation failures

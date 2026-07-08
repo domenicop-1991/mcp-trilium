@@ -149,6 +149,19 @@ npm start
 }
 ```
 
+### search_notes — optional parameters
+
+Beyond `query` and `limit`, `search_notes` exposes the native ETAPI filters:
+
+- `ancestorNoteId` — restrict the search to a note's subtree.
+- `ancestorDepth` — depth relative to the ancestor (`eq1`, `lt3`, `gt2`).
+- `orderBy` — sort field (`dateModified`, `dateCreated`, `title`, `relevancy`).
+- `orderDirection` — `asc` or `desc`.
+- `fastSearch` — search title/attributes only (skips content fulltext).
+- `includeArchivedNotes` — include archived notes.
+
+All are optional; when omitted the request is identical to before.
+
 ## Search Query Syntax
 
 TriliumNext supports powerful search queries:
@@ -274,20 +287,19 @@ The following features may be added in future versions:
 
 ### 🚀 Planned Features
 - **Enhanced note types support** - Full support for all 18 TriliumNext note types (done in v0.2.5)
-- **Advanced search features** - Attribute-based queries, date range filters, and complex search operators
-- **Performance optimizations** - Caching, batch operations, and streaming for large note collections
-- **Note relationship management** - Tools for managing note relationships and hierarchies
+- **Advanced search features** (done — the query is passthrough to TriliumNext ETAPI syntax, with native parameter filters for ancestry, sorting, archived notes, and fast search)
+- **Note relationship management** (done — create_attribute manages type: relation)
 - **Bulk operations** - Create, update, or delete multiple notes in a single operation
 - **Attachment handling** - Support for file uploads and downloads
-- **Real-time updates** - WebSocket integration for live note synchronization
 
 ### 💡 Potential Integrations
 - **Export capabilities** - Export notes to various formats (Markdown, PDF, etc.)
 - **Template system** - Predefined note templates for common use cases
-- **Backup and restore** - Automated backup functionality through MCP
-- **Analytics and insights** - Note usage statistics and content analysis
 
 ## Changelog
+
+### v0.2.6
+- Extend search_notes with native ETAPI parameters: ancestorNoteId, ancestorDepth, orderBy, orderDirection, fastSearch, includeArchivedNotes (all optional, backward compatible).
 
 ### v0.2.5
 - Extend supported note types from 8 to 18 (full TriliumNext 0.103+ list): added mermaid, mindMap, spreadsheet, render, webView, doc, noteMap, launcher, contentWidget, llmChat
