@@ -51,11 +51,8 @@ export async function searchNotes(triliumClient, args) {
         noteId: note.noteId,
         title: note.title || 'Untitled',
         type: note.type || 'text',
-        dateCreated: note.dateCreated,
         dateModified: note.dateModified,
         parentNoteIds: note.parentNoteIds || [],
-        isProtected: note.isProtected || false,
-        // Preserve additional fields that might be useful
         ...(note.mime && { mime: note.mime }),
         ...(note.attributes && { attributes: note.attributes }),
         ...(note.contentLength && { contentLength: note.contentLength })
