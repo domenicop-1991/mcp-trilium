@@ -120,6 +120,31 @@ class TriliumMCPServer {
                   default: 10,
                   description: 'Maximum number of results to return',
                 },
+                ancestorNoteId: {
+                  type: 'string',
+                  description: 'Limit the search to the subtree of this note ID (e.g. only within Second Brain).',
+                },
+                ancestorDepth: {
+                  type: 'string',
+                  description: 'Depth relative to the ancestor, Trilium syntax (e.g. "eq1", "lt3", "gt2").',
+                },
+                orderBy: {
+                  type: 'string',
+                  description: 'Field to sort by (e.g. dateModified, dateCreated, title, relevancy).',
+                },
+                orderDirection: {
+                  type: 'string',
+                  enum: ['asc', 'desc'],
+                  description: 'Sort direction; requires orderBy.',
+                },
+                fastSearch: {
+                  type: 'boolean',
+                  description: 'Faster search over title/attributes, skipping note content fulltext.',
+                },
+                includeArchivedNotes: {
+                  type: 'boolean',
+                  description: 'Include archived notes in the results.',
+                },
               },
               required: ['query'],
             },
