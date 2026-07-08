@@ -29,6 +29,7 @@ import { listChildren } from './tools/list-children.js';
 import { moveNote } from './tools/move-note.js';
 import { deleteNote } from './tools/delete-note.js';
 import { updateNoteTitle } from './tools/update-note-title.js';
+import { appendNote } from './tools/append-note.js';
 import { getRecentNotesResource } from './resources/recent-notes.js';
 import { getAliasesResource } from './resources/aliases.js';
 
@@ -304,6 +305,24 @@ class TriliumMCPServer {
               required: ['noteId', 'title']
             }
           },
+          {
+            name: 'append_to_note',
+            description: 'Append content to the end of an existing note without overwriting. Reads current content, appends, and writes back. NOTE: not atomic (read-modify-write) — concurrent appends to the same note can lose data. Content is markdown by default and converted to HTML server-side.',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                noteId: { type: 'string', description: 'ID of the note to append to' },
+                content: { type: 'string', description: 'Content to append (max 1MB). Markdown by default.' },
+                format: {
+                  type: 'string',
+                  enum: ['markdown', 'html', 'raw'],
+                  default: 'markdown',
+                  description: 'markdown (default, converted to HTML), html, or raw (no conversion).',
+                },
+              },
+              required: ['noteId', 'content'],
+            },
+          },
         ],
       };
     });
@@ -337,6 +356,8 @@ class TriliumMCPServer {
             return await this.deleteNote(request.params.arguments);
           case 'update_note_title':
             return await this.updateNoteTitle(request.params.arguments);
+          case 'append_to_note':
+            return await this.appendNote(request.params.arguments);
           default:
             throw new Error(`Unknown tool: ${request.params.name}`);
         }
@@ -442,6 +463,10 @@ class TriliumMCPServer {
 
   async updateNoteTitle(args) {
     return await updateNoteTitle(this.triliumClient, args);
+  }
+
+  async appendNote(args) {
+    return await appendNote(this.triliumClient, args);
   }
 
   async getRecentNotesResource() {
