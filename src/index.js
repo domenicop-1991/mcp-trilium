@@ -30,6 +30,7 @@ import { moveNote } from './tools/move-note.js';
 import { deleteNote } from './tools/delete-note.js';
 import { updateNoteTitle } from './tools/update-note-title.js';
 import { getRecentNotesResource } from './resources/recent-notes.js';
+import { getAliasesResource } from './resources/aliases.js';
 
 class TriliumMCPServer {
   constructor() {
@@ -357,6 +358,12 @@ class TriliumMCPServer {
             description: 'Recently modified notes in TriliumNext',
             mimeType: 'application/json',
           },
+          {
+            uri: 'trilium://aliases',
+            name: 'Note aliases',
+            description: 'Configured name→noteId aliases',
+            mimeType: 'application/json',
+          },
         ],
       };
     });
@@ -365,11 +372,15 @@ class TriliumMCPServer {
       logger.info(`Reading resource: ${request.params.uri}`);
       
       const uri = request.params.uri;
-      
+
       if (uri === 'trilium://recent-notes') {
         return await this.getRecentNotesResource();
       }
-      
+
+      if (uri === 'trilium://aliases') {
+        return this.getAliasesResource();
+      }
+
       throw new Error(`Unknown resource: ${uri}`);
     });
   }
@@ -435,6 +446,10 @@ class TriliumMCPServer {
 
   async getRecentNotesResource() {
     return await getRecentNotesResource(this.triliumClient);
+  }
+
+  getAliasesResource() {
+    return getAliasesResource(process.env.TRILIUM_ALIASES_FILE);
   }
 
   async run() {
