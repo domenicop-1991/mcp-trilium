@@ -102,6 +102,21 @@ export class TriliumClient {
     return this.makeRequest('PATCH', endpoint, data);
   }
 
+  async getRaw(endpoint) {
+    try {
+      const response = await this.client({
+        method: 'GET',
+        url: endpoint,
+        responseType: 'text',
+        transitional: { forcedJSONParsing: false },
+      });
+      return response.data;
+    } catch (error) {
+      if (error instanceof TriliumAPIError) throw error;
+      throw new TriliumAPIError(`Request failed: ${error.message}`, 0, { originalError: error.message });
+    }
+  }
+
   async putRaw(endpoint, content) {
     try {
       const config = {

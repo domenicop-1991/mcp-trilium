@@ -65,7 +65,7 @@ export async function getNote(triliumClient, args) {
 
     const requests = [triliumClient.get(`notes/${noteId}`)];
     if (includeContent) {
-      requests.push(triliumClient.get(`notes/${noteId}/content`));
+      requests.push(triliumClient.getRaw(`notes/${noteId}/content`));
     }
     const results = await Promise.all(requests);
     const note = results[0];

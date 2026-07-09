@@ -20,7 +20,7 @@ describe('getNote', () => {
   let mockTriliumClient;
 
   beforeEach(() => {
-    mockTriliumClient = { get: jest.fn() };
+    mockTriliumClient = { get: jest.fn(), getRaw: jest.fn() };
     jest.clearAllMocks();
   });
 
@@ -38,15 +38,15 @@ describe('getNote', () => {
       };
       const mockContent = 'This is the note content';
 
-      mockTriliumClient.get
-        .mockResolvedValueOnce(mockNote)
-        .mockResolvedValueOnce(mockContent);
+      mockTriliumClient.get.mockResolvedValueOnce(mockNote);
+      mockTriliumClient.getRaw.mockResolvedValueOnce(mockContent);
 
       const result = await getNote(mockTriliumClient, { noteId: 'note123' });
 
-      expect(mockTriliumClient.get).toHaveBeenCalledTimes(2);
+      expect(mockTriliumClient.get).toHaveBeenCalledTimes(1);
       expect(mockTriliumClient.get).toHaveBeenNthCalledWith(1, 'notes/note123');
-      expect(mockTriliumClient.get).toHaveBeenNthCalledWith(2, 'notes/note123/content');
+      expect(mockTriliumClient.getRaw).toHaveBeenCalledTimes(1);
+      expect(mockTriliumClient.getRaw).toHaveBeenNthCalledWith(1, 'notes/note123/content');
 
       expect(result.content[0].text).toBe('Note: "Test Note" (text, 24 chars)');
       const payload = getPayload(result);
@@ -67,9 +67,8 @@ describe('getNote', () => {
       };
       const mockContent = '<h1>Titolo</h1><p>Ciao <strong>mondo</strong></p>';
 
-      mockTriliumClient.get
-        .mockResolvedValueOnce(mockNote)
-        .mockResolvedValueOnce(mockContent);
+      mockTriliumClient.get.mockResolvedValueOnce(mockNote);
+      mockTriliumClient.getRaw.mockResolvedValueOnce(mockContent);
 
       const result = await getNote(mockTriliumClient, { noteId: 'note123' });
 
@@ -89,9 +88,8 @@ describe('getNote', () => {
       };
       const html = '<p>Ciao <strong>mondo</strong></p>';
 
-      mockTriliumClient.get
-        .mockResolvedValueOnce(mockNote)
-        .mockResolvedValueOnce(html);
+      mockTriliumClient.get.mockResolvedValueOnce(mockNote);
+      mockTriliumClient.getRaw.mockResolvedValueOnce(html);
 
       const result = await getNote(mockTriliumClient, { noteId: 'note123', format: 'html' });
       const payload = getPayload(result);
@@ -103,9 +101,8 @@ describe('getNote', () => {
       const mockNote = { noteId: 'note123', title: 'HTML Note', type: 'text', mime: 'text/html' };
       const html = '<p>raw</p>';
 
-      mockTriliumClient.get
-        .mockResolvedValueOnce(mockNote)
-        .mockResolvedValueOnce(html);
+      mockTriliumClient.get.mockResolvedValueOnce(mockNote);
+      mockTriliumClient.getRaw.mockResolvedValueOnce(html);
 
       const result = await getNote(mockTriliumClient, { noteId: 'note123', format: 'raw' });
       expect(getPayload(result).note.content.data).toBe(html);
@@ -119,6 +116,7 @@ describe('getNote', () => {
 
       expect(mockTriliumClient.get).toHaveBeenCalledTimes(1);
       expect(mockTriliumClient.get).toHaveBeenCalledWith('notes/note123');
+      expect(mockTriliumClient.getRaw).not.toHaveBeenCalled();
       expect(result.content[0].text).toBe('Note: "Test" (text, metadata only)');
       const payload = getPayload(result);
       expect(payload.note.content).toBeUndefined();
@@ -128,9 +126,8 @@ describe('getNote', () => {
       const mockNote = { noteId: 'note123', title: 'Long', type: 'text', mime: 'text/plain' };
       const body = 'A'.repeat(500);
 
-      mockTriliumClient.get
-        .mockResolvedValueOnce(mockNote)
-        .mockResolvedValueOnce(body);
+      mockTriliumClient.get.mockResolvedValueOnce(mockNote);
+      mockTriliumClient.getRaw.mockResolvedValueOnce(body);
 
       const result = await getNote(mockTriliumClient, { noteId: 'note123', maxContentChars: 100 });
       const payload = getPayload(result);
@@ -144,9 +141,8 @@ describe('getNote', () => {
       const mockNote = { noteId: 'note123', title: 'Short', type: 'text', mime: 'text/plain' };
       const body = 'ABC';
 
-      mockTriliumClient.get
-        .mockResolvedValueOnce(mockNote)
-        .mockResolvedValueOnce(body);
+      mockTriliumClient.get.mockResolvedValueOnce(mockNote);
+      mockTriliumClient.getRaw.mockResolvedValueOnce(body);
 
       const result = await getNote(mockTriliumClient, { noteId: 'note123', maxContentChars: 100 });
       const payload = getPayload(result);
@@ -157,9 +153,8 @@ describe('getNote', () => {
 
     test('omits empty/derivable metadata fields', async () => {
       const mockNote = { noteId: 'note123', title: 'Lean', type: 'text' };
-      mockTriliumClient.get
-        .mockResolvedValueOnce(mockNote)
-        .mockResolvedValueOnce('x');
+      mockTriliumClient.get.mockResolvedValueOnce(mockNote);
+      mockTriliumClient.getRaw.mockResolvedValueOnce('x');
 
       const result = await getNote(mockTriliumClient, { noteId: 'note123' });
       const payload = getPayload(result);
@@ -181,9 +176,8 @@ describe('getNote', () => {
         childNoteIds: ['c1'],
         attributes: [{ name: 'lang', value: 'javascript' }],
       };
-      mockTriliumClient.get
-        .mockResolvedValueOnce(mockNote)
-        .mockResolvedValueOnce('console.log("ok");');
+      mockTriliumClient.get.mockResolvedValueOnce(mockNote);
+      mockTriliumClient.getRaw.mockResolvedValueOnce('console.log("ok");');
 
       const result = await getNote(mockTriliumClient, { noteId: 'note123' });
       const payload = getPayload(result);
@@ -197,9 +191,8 @@ describe('getNote', () => {
     test('handles binary content', async () => {
       const mockNote = { noteId: 'note123', title: 'Image', type: 'image', mime: 'image/png' };
       const binary = new ArrayBuffer(1024);
-      mockTriliumClient.get
-        .mockResolvedValueOnce(mockNote)
-        .mockResolvedValueOnce(binary);
+      mockTriliumClient.get.mockResolvedValueOnce(mockNote);
+      mockTriliumClient.getRaw.mockResolvedValueOnce(binary);
 
       const result = await getNote(mockTriliumClient, { noteId: 'note123' });
       expect(result.content[0].text).toBe('Note: "Image" (image, binary)');
@@ -210,9 +203,8 @@ describe('getNote', () => {
 
     test('handles empty content', async () => {
       const mockNote = { noteId: 'note123', title: 'Empty', type: 'text', mime: 'text/plain' };
-      mockTriliumClient.get
-        .mockResolvedValueOnce(mockNote)
-        .mockResolvedValueOnce('');
+      mockTriliumClient.get.mockResolvedValueOnce(mockNote);
+      mockTriliumClient.getRaw.mockResolvedValueOnce('');
 
       const result = await getNote(mockTriliumClient, { noteId: 'note123' });
       expect(result.content[0].text).toBe('Note: "Empty" (text, 0 chars)');
@@ -223,14 +215,27 @@ describe('getNote', () => {
 
     test('handles unicode in title and content', async () => {
       const mockNote = { noteId: 'note123', title: '日本語 🌸', type: 'text', mime: 'text/plain' };
-      mockTriliumClient.get
-        .mockResolvedValueOnce(mockNote)
-        .mockResolvedValueOnce('こんにちは 🎌');
+      mockTriliumClient.get.mockResolvedValueOnce(mockNote);
+      mockTriliumClient.getRaw.mockResolvedValueOnce('こんにちは 🎌');
 
       const result = await getNote(mockTriliumClient, { noteId: 'note123' });
       const payload = getPayload(result);
       expect(payload.note.title).toBe('日本語 🌸');
       expect(payload.note.content.data).toBe('こんにちは 🎌');
+    });
+
+    test('reports JSON-like content as text, not binary (regression)', async () => {
+      const mockNote = { noteId: 'note123', title: 'Code', type: 'code', mime: 'application/json' };
+      mockTriliumClient.get.mockResolvedValueOnce(mockNote);
+      mockTriliumClient.getRaw.mockResolvedValueOnce('{"k":1}');
+
+      const result = await getNote(mockTriliumClient, { noteId: 'note123' });
+      const payload = getPayload(result);
+
+      expect(payload.note.content.type).toBe('text');
+      expect(payload.note.content.data).toBe('{"k":1}');
+      expect(payload.note.content.length).toBe(7);
+      expect(payload.note.content.type).not.toBe('binary');
     });
   });
 
@@ -262,9 +267,8 @@ describe('getNote', () => {
     });
 
     test('trims whitespace from noteId', async () => {
-      mockTriliumClient.get
-        .mockResolvedValueOnce({ noteId: 'note123', title: 'Test' })
-        .mockResolvedValueOnce('Content');
+      mockTriliumClient.get.mockResolvedValueOnce({ noteId: 'note123', title: 'Test' });
+      mockTriliumClient.getRaw.mockResolvedValueOnce('Content');
       await getNote(mockTriliumClient, { noteId: '  note123  ' });
       expect(mockTriliumClient.get).toHaveBeenCalledWith('notes/note123');
     });
@@ -293,9 +297,8 @@ describe('getNote', () => {
     });
 
     test('handles null note response as 404', async () => {
-      mockTriliumClient.get
-        .mockResolvedValueOnce(null)
-        .mockResolvedValueOnce('');
+      mockTriliumClient.get.mockResolvedValueOnce(null);
+      mockTriliumClient.getRaw.mockResolvedValueOnce('');
       const result = await getNote(mockTriliumClient, { noteId: 'x' });
       expect(result.isError).toBe(true);
       expect(result.content[0].text).toContain('Note not found: x');

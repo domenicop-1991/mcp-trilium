@@ -188,6 +188,26 @@ describe('searchNotes', () => {
       expect(jsonData.notes[0].parentNoteIds).toEqual(['parent456']);
     });
 
+    test('projection omits dateCreated and isProtected but keeps dateModified/parentNoteIds', async () => {
+      mockTriliumClient.get.mockResolvedValue({
+        results: [{
+          noteId: 'n1', title: 'T', type: 'text',
+          dateCreated: '2024-01-01', dateModified: '2024-02-02',
+          parentNoteIds: ['p1'], isProtected: false,
+        }],
+      });
+      const res = await searchNotes(mockTriliumClient, { query: 'x', limit: 5 });
+      const data = JSON.parse(res.content[1].text);
+      const note = data.notes[0];
+      expect(note.noteId).toBe('n1');
+      expect(note.title).toBe('T');
+      expect(note.type).toBe('text');
+      expect(note.dateModified).toBe('2024-02-02');
+      expect(note.parentNoteIds).toEqual(['p1']);
+      expect(note).not.toHaveProperty('dateCreated');
+      expect(note).not.toHaveProperty('isProtected');
+    });
+
     test('appends optional ETAPI params only when provided', async () => {
       mockTriliumClient.get.mockResolvedValue({ results: [] });
 
