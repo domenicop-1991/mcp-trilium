@@ -152,4 +152,37 @@ export const validators = {
     }
     return trimmed;
   },
+
+  orderDirection: (value) => {
+    if (value === undefined || value === null) return undefined;
+    const trimmed = typeof value === 'string' ? value.trim().toLowerCase() : value;
+    if (trimmed !== 'asc' && trimmed !== 'desc') {
+      throw new ValidationError("orderDirection must be 'asc' or 'desc'");
+    }
+    return trimmed;
+  },
+
+  boolean: (value, fieldName = 'value') => {
+    if (value === undefined || value === null) return undefined;
+    if (typeof value === 'boolean') return value;
+    if (value === 'true') return true;
+    if (value === 'false') return false;
+    throw new ValidationError(`${fieldName} must be a boolean`);
+  },
+
+  searchField: (value, fieldName = 'value') => {
+    if (value === undefined || value === null) return undefined;
+    if (typeof value !== 'string') {
+      throw new ValidationError(`${fieldName} must be a string`);
+    }
+    const trimmed = value.trim();
+    if (trimmed.length === 0) return undefined;
+    if (trimmed.length > 100) {
+      throw new ValidationError(`${fieldName} cannot exceed 100 characters`);
+    }
+    if (!/^[a-zA-Z0-9_.#\s]+$/.test(trimmed)) {
+      throw new ValidationError(`${fieldName} contains invalid characters`);
+    }
+    return trimmed;
+  },
 };

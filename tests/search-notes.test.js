@@ -187,6 +187,39 @@ describe('searchNotes', () => {
       expect(jsonData.notes[0].dateModified).toBe('2024-01-15T14:30:00.000Z');
       expect(jsonData.notes[0].parentNoteIds).toEqual(['parent456']);
     });
+
+    test('appends optional ETAPI params only when provided', async () => {
+      mockTriliumClient.get.mockResolvedValue({ results: [] });
+
+      await searchNotes(mockTriliumClient, {
+        query: 'diario',
+        limit: 5,
+        ancestorNoteId: 'abc123',
+        orderBy: 'dateModified',
+        orderDirection: 'desc',
+        fastSearch: true,
+        includeArchivedNotes: false,
+        ancestorDepth: 'eq1'
+      });
+
+      const calledUrl = mockTriliumClient.get.mock.calls[0][0];
+      expect(calledUrl).toContain('search=diario');
+      expect(calledUrl).toContain('limit=5');
+      expect(calledUrl).toContain('ancestorNoteId=abc123');
+      expect(calledUrl).toContain('ancestorDepth=eq1');
+      expect(calledUrl).toContain('orderBy=dateModified');
+      expect(calledUrl).toContain('orderDirection=desc');
+      expect(calledUrl).toContain('fastSearch=true');
+      expect(calledUrl).toContain('includeArchivedNotes=false');
+    });
+
+    test('does not append optional params when absent (backward compatible)', async () => {
+      mockTriliumClient.get.mockResolvedValue({ results: [] });
+
+      await searchNotes(mockTriliumClient, { query: 'plain', limit: 10 });
+
+      expect(mockTriliumClient.get).toHaveBeenCalledWith('notes?search=plain&limit=10');
+    });
   });
 
   describe('empty results', () => {
@@ -540,6 +573,17 @@ describe('searchNotes', () => {
       
       const jsonData = JSON.parse(result.content[1].text);
       expect(jsonData.notes[0].title).toBe('日本語のノート 🌸');
+    });
+  });
+
+  describe('validation errors', () => {
+    test('rejects invalid orderDirection', async () => {
+      const result = await searchNotes(mockTriliumClient, {
+        query: 'x', orderDirection: 'upside-down'
+      });
+      expect(result.isError).toBe(true);
+      expect(result.content[0].text).toMatch(/Validation error/);
+      expect(mockTriliumClient.get).not.toHaveBeenCalled();
     });
   });
 });

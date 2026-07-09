@@ -7,6 +7,12 @@ export async function searchNotes(triliumClient, args) {
     // Validate inputs
     const query = validators.searchQuery(args.query);
     const limit = validators.limit(args.limit);
+    const ancestorNoteId = args.ancestorNoteId != null ? validators.noteId(args.ancestorNoteId) : undefined;
+    const ancestorDepth = validators.searchField(args.ancestorDepth, 'ancestorDepth');
+    const orderBy = validators.searchField(args.orderBy, 'orderBy');
+    const orderDirection = validators.orderDirection(args.orderDirection);
+    const fastSearch = validators.boolean(args.fastSearch, 'fastSearch');
+    const includeArchivedNotes = validators.boolean(args.includeArchivedNotes, 'includeArchivedNotes');
 
     logger.debug(`Searching notes: query="${query}", limit=${limit}`);
 
@@ -15,6 +21,13 @@ export async function searchNotes(triliumClient, args) {
       search: query,
       limit: limit.toString(),
     });
+    const filters = {};
+    if (ancestorNoteId !== undefined) { params.append('ancestorNoteId', ancestorNoteId); filters.ancestorNoteId = ancestorNoteId; }
+    if (ancestorDepth !== undefined) { params.append('ancestorDepth', ancestorDepth); filters.ancestorDepth = ancestorDepth; }
+    if (orderBy !== undefined) { params.append('orderBy', orderBy); filters.orderBy = orderBy; }
+    if (orderDirection !== undefined) { params.append('orderDirection', orderDirection); filters.orderDirection = orderDirection; }
+    if (fastSearch !== undefined) { params.append('fastSearch', String(fastSearch)); filters.fastSearch = fastSearch; }
+    if (includeArchivedNotes !== undefined) { params.append('includeArchivedNotes', String(includeArchivedNotes)); filters.includeArchivedNotes = includeArchivedNotes; }
 
     // Search notes via TriliumNext API
     const response = await triliumClient.get(`notes?${params}`);
@@ -33,6 +46,7 @@ export async function searchNotes(triliumClient, args) {
       totalResults: results.length,
       hasMore: results.length === limit, // Might be more results if we hit the limit
       timestamp: new Date().toISOString(),
+      ...(Object.keys(filters).length > 0 && { filters }),
       notes: results.map(note => ({
         noteId: note.noteId,
         title: note.title || 'Untitled',
