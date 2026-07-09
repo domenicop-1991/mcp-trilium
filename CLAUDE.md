@@ -59,7 +59,7 @@ LOG_LEVEL=info
 - **TriliumMCPServer** (`src/index.js`) - Main server class that implements MCP protocol
 - **TriliumClient** (`src/utils/trilium-client.js`) - HTTP client wrapper for TriliumNext ETAPI
 - **Tools** (`src/tools/`) - Individual MCP tool implementations (create-note, search-notes, get-note, update-note)
-- **Resources** (`src/resources/`) - MCP resource implementations (recent-notes)
+- **Resources** (`src/resources/`) - MCP resource implementations (recent-notes, aliases)
 - **Utils** (`src/utils/`) - Shared utilities (logger, validation, client)
 
 ### Key Design Patterns
@@ -73,8 +73,8 @@ LOG_LEVEL=info
 ### MCP Protocol Implementation
 
 The server implements:
-- **12 Tools**: create_note, search_notes, get_note, update_note, list_attributes, create_attribute, update_attribute, delete_attribute, list_children, move_note, delete_note, update_note_title
-- **1 Resource**: trilium://recent-notes (10 most recent notes)
+- **13 Tools**: create_note, search_notes, get_note, update_note, list_attributes, create_attribute, update_attribute, delete_attribute, list_children, move_note, delete_note, update_note_title, append_to_note
+- **2 Resources**: trilium://recent-notes (10 most recent notes), trilium://aliases (configurable name→noteId map from TRILIUM_ALIASES_FILE)
 - **Full MCP compliance**: Uses @modelcontextprotocol/sdk with proper request/response schemas
 
 ### API Integration

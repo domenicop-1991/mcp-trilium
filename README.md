@@ -21,9 +21,11 @@ This MCP server enables AI assistants like Claude to interact with your TriliumN
 - **move_note** - Move a note under a new parent (supports cloned notes via branchId or oldParentNoteId)
 - **delete_note** - Delete a note (requires confirmCascade for non-leaf notes)
 - **update_note_title** - Rename a note (change its title without touching content)
+- **append_to_note** - Append content to a note without overwriting (read-modify-write; not atomic; markdown→HTML by default)
 
 ### 📚 Resources
 - **trilium://recent-notes** - Access to 10 most recently modified notes
+- **trilium://aliases** - Configurable name→noteId map read from `TRILIUM_ALIASES_FILE` (empty by default)
 
 ### ✨ Key Capabilities
 - Full CRUD operations for notes
@@ -297,6 +299,12 @@ The following features may be added in future versions:
 - **Template system** - Predefined note templates for common use cases
 
 ## Changelog
+
+### v0.6.0
+- Add `append_to_note` tool: append content without overwriting (read-modify-write, non-atomic, markdown→HTML).
+- Add `trilium://aliases` resource: name→noteId map from `TRILIUM_ALIASES_FILE` (empty when unconfigured), so clients resolve stable zones without searching.
+- Trim `search_notes` payload: drop unused `dateCreated`/`isProtected` (keep `dateModified`/`parentNoteIds`).
+- Fix: `append_to_note` and `get_note` now read note content as raw text (`getRaw`), avoiding axios JSON auto-parsing that could zero-out or hide content of notes whose body is valid JSON.
 
 ### v0.5.0
 - Extend search_notes with native ETAPI parameters: ancestorNoteId, ancestorDepth, orderBy, orderDirection, fastSearch, includeArchivedNotes (all optional, backward compatible).
