@@ -73,3 +73,51 @@ describe('htmlToMarkdown', () => {
     expect(htmlToMarkdown(buf)).toBe(buf);
   });
 });
+
+describe('htmlToMarkdown - collapsible blocks (Trilium 0.104)', () => {
+  const html = '<p>prima</p><details class="trilium-collapsible"><summary>Il titolo</summary><p>corpo con <strong>bold</strong>.</p></details><p>dopo</p>';
+  const md = htmlToMarkdown(html, { mime: 'text/html' });
+
+  test('preserves the details wrapper with the Trilium class', () => {
+    expect(md).toContain('<details class="trilium-collapsible">');
+    expect(md).toContain('</details>');
+  });
+
+  test('keeps the summary as the block title', () => {
+    expect(md).toContain('<summary>Il titolo</summary>');
+  });
+
+  test('converts the body to markdown', () => {
+    expect(md).toContain('corpo con **bold**.');
+  });
+
+  test('does not leak the internal summary sentinel', () => {
+    expect(md).not.toContain('@@TRILIUM_SUMMARY@@');
+  });
+
+  test('leaves surrounding content intact', () => {
+    expect(md).toContain('prima');
+    expect(md).toContain('dopo');
+  });
+});
+
+describe('htmlToMarkdown - task state (Trilium 0.104)', () => {
+  const li = (state, text, checked) =>
+    `<li${state ? ` data-trilium-task-state="${state}"` : ''}><label class="todo-list__label"><input type="checkbox"${checked ? ' checked="checked"' : ''} disabled="disabled"><span class="todo-list__label__description">${text}</span></label></li>`;
+  const md = htmlToMarkdown(
+    `<ul class="todo-list">${li(null, 'niente')}${li('doing', 'in corso')}${li(null, 'fatto', true)}${li('maybe', 'forse')}${li('cancelled', 'annullato')}</ul>`,
+    { mime: 'text/html' },
+  );
+
+  test('renders each state with its markdown symbol', () => {
+    expect(md).toMatch(/-\s+\[ \] niente/);
+    expect(md).toMatch(/-\s+\[\/\] in corso/);
+    expect(md).toMatch(/-\s+\[x\] fatto/);
+    expect(md).toMatch(/-\s+\[\?\] forse/);
+    expect(md).toMatch(/-\s+\[-\] annullato/);
+  });
+
+  test('does not leak the state attribute into the markdown', () => {
+    expect(md).not.toContain('data-trilium-task-state');
+  });
+});
