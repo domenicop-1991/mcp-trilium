@@ -30,6 +30,7 @@ This MCP server enables AI assistants like Claude to interact with your TriliumN
 ### ✨ Key Capabilities
 - Full CRUD operations for notes
 - Advanced search with TriliumNext query syntax
+- Markdown ↔ HTML conversion that survives a round-trip, including collapsible blocks and to-do lists with task states (Trilium 0.104+)
 - Structured data preservation for AI consumption
 - Comprehensive error handling and validation
 - Production-ready logging and monitoring
@@ -164,6 +165,63 @@ Beyond `query` and `limit`, `search_notes` exposes the native ETAPI filters:
 
 All are optional; when omitted the request is identical to before.
 
+## Rich Content (Trilium 0.104+)
+
+Text notes are written as markdown and converted to the HTML that Trilium's editor actually produces, so the constructs below stay native — they remain clickable and editable in the UI, and survive a read-modify-write cycle instead of being flattened.
+
+### To-do lists and task states
+
+A plain checklist maps to Trilium's native to-do list:
+
+```markdown
+- [ ] not started
+- [x] done
+```
+
+Beyond checked/unchecked, Trilium 0.104 supports **task states** (the release notes call this "multistate"). Each state has a single-character markdown symbol:
+
+| State | stateId | Markdown |
+|---|---|---|
+| None | — | `[ ]` |
+| Doing | `doing` | `[/]` |
+| Done | — | `[x]` |
+| Maybe | `maybe` | `[?]` |
+| Cancelled | `cancelled` | `[-]` |
+
+`Done` and `None` carry no `stateId` — they are distinguished only by the `checked` attribute. The others travel as `data-trilium-task-state` on the `<li>`.
+
+**States are read from your vault, not hardcoded.** On startup the server reads the `_taskStates` subtree over ETAPI and builds the symbol ↔ stateId map. To add your own state, create a child note under `_taskStates` and fill its promoted attributes (`stateId`, `markdownSymbol`, `isCompleted`, `color`, `iconClass`), then reload Trilium and restart the MCP server — no code change required. Prefix custom identifiers with `_` or `-` to avoid clashing with states Trilium may add later.
+
+If the vault is unreachable at startup, the built-in states are kept and the server stays usable.
+
+### Collapsible blocks
+
+Emitted and parsed as HTML embedded in markdown, so the body stays regular markdown:
+
+```markdown
+<details class="trilium-collapsible">
+<summary>Click to expand</summary>
+
+Hidden content with **formatting**.
+
+</details>
+```
+
+### Mermaid diagrams
+
+`mermaid` notes are stored verbatim, so any syntax the bundled Mermaid supports works. Trilium 0.104 ships Mermaid 11.16.0, which adds swimlane, Cynefin and railroad diagrams. Lanes are top-level `subgraph`s with an id and a bracketed label:
+
+```
+swimlane-beta LR
+  subgraph Client ["Client"]
+    A[Open ticket]
+  end
+  subgraph Support ["Support"]
+    B[Triage]
+  end
+  A --> B
+```
+
 ## Search Query Syntax
 
 TriliumNext supports powerful search queries:
@@ -196,11 +254,16 @@ src/
 │   ├── create-note.js
 │   ├── search-notes.js
 │   ├── get-note.js
-│   └── update-note.js
+│   ├── update-note.js
+│   └── append-note.js
 ├── resources/         # MCP resource implementations
-│   └── recent-notes.js
+│   ├── recent-notes.js
+│   └── aliases.js
 └── utils/             # Shared utilities
     ├── trilium-client.js
+    ├── md-to-html.js      # markdown → Trilium HTML (to-do lists, task states)
+    ├── html-to-markdown.js # Trilium HTML → markdown (collapsible blocks, task states)
+    ├── task-states.js      # task state registry, loaded from the vault at startup
     ├── validation.js
     └── logger.js
 ```
@@ -211,7 +274,7 @@ src/
 This server uses TriliumNext's External API (ETAPI). Key endpoints:
 - `GET /notes` - Search notes
 - `POST /create-note` - Create note
-- `GET /notes/{id}` - Get note details
+- `GET /notes/{id}` - Get note details (also used to read the `_taskStates` subtree at startup)
 - `PUT /notes/{id}/content` - Update note content
 
 See [docs/trilium-etapi-specification.md](docs/trilium-etapi-specification.md) for complete API documentation.
