@@ -16,6 +16,7 @@ import {
 
 import { logger } from './utils/logger.js';
 import { TriliumClient, TriliumAPIError } from './utils/trilium-client.js';
+import { loadTaskStates } from './utils/task-states.js';
 import { ValidationError } from './utils/validation.js';
 import { createNote } from './tools/create-note.js';
 import { searchNotes } from './tools/search-notes.js';
@@ -482,6 +483,7 @@ class TriliumMCPServer {
       const transport = new StdioServerTransport();
       await this.server.connect(transport);
       logger.info('TriliumNext MCP server running on stdio');
+      await loadTaskStates(this.triliumClient);
     } catch (error) {
       logger.error('Failed to start server:', error);
       process.exit(1);
