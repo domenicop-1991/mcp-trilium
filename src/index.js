@@ -31,6 +31,7 @@ import { moveNote } from './tools/move-note.js';
 import { deleteNote } from './tools/delete-note.js';
 import { updateNoteTitle } from './tools/update-note-title.js';
 import { appendNote } from './tools/append-note.js';
+import { editNote } from './tools/edit-note.js';
 import { getRecentNotesResource } from './resources/recent-notes.js';
 import { getAliasesResource } from './resources/aliases.js';
 
@@ -324,6 +325,26 @@ class TriliumMCPServer {
               required: ['noteId', 'content'],
             },
           },
+          {
+            name: 'edit_note',
+            description: 'Edit part of a note by replacing an exact string, without rewriting the whole note. Reads current content, replaces oldString with newString, and writes back. NOTE: not atomic (read-modify-write). By default (format=markdown) both strings are converted md→HTML to match block-level content; falls back to a literal match if the converted form is not found. Fails if oldString is absent, or found more than once unless replaceAll=true. An empty newString deletes the matched fragment.',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                noteId: { type: 'string', description: 'ID of the note to edit' },
+                oldString: { type: 'string', description: 'Exact fragment to replace (non-empty). In markdown mode this matches block-level content best; for surgical/inline edits fetch the exact HTML via get_note with format=html and use format=html/raw here.' },
+                newString: { type: 'string', description: 'Replacement text (empty string deletes the fragment). Max 1MB. In markdown mode it is converted to HTML only when oldString matched via its converted form; on a literal fallback match it is inserted verbatim (so pass HTML, not markdown, for inline edits).' },
+                replaceAll: { type: 'boolean', default: false, description: 'Replace every occurrence instead of requiring a unique match.' },
+                format: {
+                  type: 'string',
+                  enum: ['markdown', 'html', 'raw'],
+                  default: 'markdown',
+                  description: 'markdown (default, both strings converted to HTML before matching), html, or raw (literal match, no conversion).',
+                },
+              },
+              required: ['noteId', 'oldString', 'newString'],
+            },
+          },
         ],
       };
     });
@@ -359,6 +380,8 @@ class TriliumMCPServer {
             return await this.updateNoteTitle(request.params.arguments);
           case 'append_to_note':
             return await this.appendNote(request.params.arguments);
+          case 'edit_note':
+            return await this.editNote(request.params.arguments);
           default:
             throw new Error(`Unknown tool: ${request.params.name}`);
         }
@@ -468,6 +491,10 @@ class TriliumMCPServer {
 
   async appendNote(args) {
     return await appendNote(this.triliumClient, args);
+  }
+
+  async editNote(args) {
+    return await editNote(this.triliumClient, args);
   }
 
   async getRecentNotesResource() {

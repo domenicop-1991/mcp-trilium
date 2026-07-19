@@ -73,7 +73,7 @@ LOG_LEVEL=info
 ### MCP Protocol Implementation
 
 The server implements:
-- **13 Tools**: create_note, search_notes, get_note, update_note, list_attributes, create_attribute, update_attribute, delete_attribute, list_children, move_note, delete_note, update_note_title, append_to_note
+- **14 Tools**: create_note, search_notes, get_note, update_note, list_attributes, create_attribute, update_attribute, delete_attribute, list_children, move_note, delete_note, update_note_title, append_to_note, edit_note
 - **2 Resources**: trilium://recent-notes (10 most recent notes), trilium://aliases (configurable name→noteId map from TRILIUM_ALIASES_FILE)
 - **Full MCP compliance**: Uses @modelcontextprotocol/sdk with proper request/response schemas
 

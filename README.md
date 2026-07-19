@@ -22,6 +22,7 @@ This MCP server enables AI assistants like Claude to interact with your TriliumN
 - **delete_note** - Delete a note (requires confirmCascade for non-leaf notes)
 - **update_note_title** - Rename a note (change its title without touching content)
 - **append_to_note** - Append content to a note without overwriting (read-modify-write; not atomic; markdown→HTML by default)
+- **edit_note** - Replace an exact string inside a note without rewriting the whole content (read-modify-write; not atomic; markdown→HTML by default with literal fallback; requires a unique match unless replaceAll)
 
 ### 📚 Resources
 - **trilium://recent-notes** - Access to 10 most recently modified notes
@@ -362,6 +363,9 @@ The following features may be added in future versions:
 - **Template system** - Predefined note templates for common use cases
 
 ## Changelog
+
+### v0.7.0
+- Add `edit_note` tool: partial edit via exact string replacement, without rewriting the whole note (read-modify-write, non-atomic). Default markdown mode converts both strings to HTML before matching, with literal fallback; fails on zero or ambiguous matches unless `replaceAll`. Empty `newString` deletes the fragment.
 
 ### v0.6.0
 - Add `append_to_note` tool: append content without overwriting (read-modify-write, non-atomic, markdown→HTML).
